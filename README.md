@@ -27,7 +27,7 @@ It is important to note that, `batch_rollout` assumes the additivity of tokenize
 tok(a ++ b) = tok(a) ++ tok(b)
 ```
 
-where `a` and `b` are texts and `++` is concatenation. This is because `Env` interacts with LLM via text, not sequence of tokens.
+where `a` and `b` are texts and `++` is concatenation. This is because `Env` interacts with LLM via text, not sequence of tokens, and as far as my knowledge, this is unavoidable.
 
 # PROCESSOR
 
