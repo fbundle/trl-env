@@ -1,6 +1,6 @@
 [project]
 name = "trl-env"
-version = "0.1.2"
+dynamic = ["version"]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -12,3 +12,11 @@ dependencies = [
     "transformers>=5.6.0",
     "trl>=1.2.0",
 ]
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "trl_env/__init__.py"
