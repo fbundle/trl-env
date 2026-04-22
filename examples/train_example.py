@@ -8,12 +8,12 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from accelerate import PartialState
 
 
-from leanlm.env_trainer.dataset import LazyDataset
-from leanlm.env_trainer.environment import Action, Delta, Env, Seed
-from leanlm.env_trainer.model import TransformerModel
-from leanlm.env_trainer.trainer import train
-from leanlm.env_trainer.trainer_config import Mode, TrainConfig
-from leanlm.env_trainer.processor import qwen3_instruct_processor, qwen3_processor
+from trl_env.dataset import LazyDataset
+from trl_env.environment import Action, Delta, Env, Seed
+from trl_env.model import TransformerModel
+from trl_env.trainer import train
+from trl_env.trainer_config import Mode, TrainConfig
+from trl_env.processor import qwen3_instruct_processor, qwen3_processor
 
 
 def load_model_and_tokenizer(model_path: str):

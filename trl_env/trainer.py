@@ -7,7 +7,7 @@ import torch
 from transformers import TrainerCallback
 from transformers.trainer_utils import get_last_checkpoint
 
-from leanlm.env_trainer.batch_rollout import make_rollout_func
+from .batch_rollout import make_rollout_func
 from .trainer_config import TrainConfig
 from .trainer_util import Callback, get_hf_info
 
