@@ -1,6 +1,6 @@
 # TRL-ENV
 
-[TRL](https://github.com/huggingface/trl) is a convenient library to train large language model using reinforcement learning (RL). However,  it is still too new, the interface is not well-developed yet. `rollout_func` is a low-level interface to write your own rollout for RL and `environment_factory` is a high-level interface to train your model with external environemnt, however, how it parse the model output for tool use is uncleared and not documented.
+[TRL](https://github.com/huggingface/trl) is a convenient library to train large language model (LLM) using reinforcement learning (RL). However,  it is still too new, the interface is not well-developed yet. `rollout_func` is a low-level interface to write your own rollout for RL and `environment_factory` is a high-level interface to train your model with external environemnt, however, how it parse the model output for tool use is uncleared and not documented.
 
 
 
