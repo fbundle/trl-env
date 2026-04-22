@@ -130,9 +130,6 @@ def main(train_mode: Mode, uuid: str, debug: bool):
     # train 1000 batches
     train_size = 100 * effective_batch_size
 
-    
-
-
     # train data generation
     # total_num_steps = train_size x num_generations / effective_batch_size
     #       = 8000
