@@ -45,4 +45,4 @@ class Processor(Protocol):
 
 # EXAMPLES
 
-[TRL-ENV](https://github.com/fbundle/trl-env) also provide a very simple agentic LLM interface. Training code is about 200 lines. See `examples`
+[TRL-ENV](https://github.com/fbundle/trl-env) provides a very simple example for training agentic LLM. See `examples`

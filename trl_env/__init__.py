@@ -1,4 +1,4 @@
 __version__ = "0.1.3"
 
-from .environment import *
-from .processor import *
+from .environment import Action, Delta, Seed, Env
+from .processor import Language, Processor
