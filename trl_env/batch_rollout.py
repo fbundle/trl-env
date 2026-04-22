@@ -81,6 +81,8 @@ def batch_rollout(
     # while some environment is still not termininate
     while sum([env.alive for env in env_list]) > 0:
         # MODEL BATCH GENERATE
+        # TODO - consider giving `past_key_values`
+        # i.e. give the model the last hidden states so that it won't recalculate everything from the beginning
         completion_ids_list, logprobs_list = model.model_batch_generate([state.conversation for state in state_list])
 
         for env, state, completion_ids, logprobs in zip(env_list, state_list, completion_ids_list, logprobs_list):
