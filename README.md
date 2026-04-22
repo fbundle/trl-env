@@ -18,7 +18,9 @@ class Env(Protocol):
     def step(self, action: Action) -> Delta: ...
 ```
 
-It is similar to tool call if not the same. Moreover, [transformers](https://github.com/huggingface/transformers) despite after 8 years of development (as of 2026) is still not stable. For example, not all models has `Tokenizer.parse_response` which should be a basic function that must be implemented from the beginning. [TRL-ENV](https://github.com/fbundle/trl-env) requires `Tokenizer.parse_response` to be existed by `Processor` interface
+It is similar to tool call if not the same. Note that, `rollout_func` is an experimental feature of [TRL](https://github.com/huggingface/trl), <mark>this library is subject to break at anytime</mark>
+
+Moreover, [transformers](https://github.com/huggingface/transformers) despite after 8 years of development (as of 2026) is still not stable. For example, not all models has `Tokenizer.parse_response` which should be a basic function that must be implemented from the beginning. [TRL-ENV](https://github.com/fbundle/trl-env) requires `Tokenizer.parse_response` to be existed by `Processor` interface
 
 ```python
 
