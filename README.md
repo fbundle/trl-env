@@ -19,7 +19,7 @@ class Env(Protocol):
     def step(self, action: Action) -> Delta: ...
 ```
 
-It is similar to tool call if not the same. Note that, `rollout_func` is an experimental feature of [TRL](https://github.com/huggingface/trl), <mark>this library is subject to break at anytime</mark>
+It is similar to tool call if not the same. Note that, `rollout_func` is an experimental feature of [TRL](https://github.com/huggingface/trl), this library is subject to break at anytime
 
 It is important to note that, `batch_rollout` assumes the additivity of tokenizer, that is 
 
