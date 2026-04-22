@@ -1,6 +1,6 @@
+from dataclasses import dataclass
 from typing import Protocol
 
-from pydantic import BaseModel
 
 # THIS SHOULD BE BUILTIN IN TOKENIZER BUT NOONE BOTHER TO DO IT
 # check tokenizer.apply_chat_template and tokenizer.parse_response
@@ -13,7 +13,8 @@ class Processor(Protocol):
     def append_user_input(self, prompt: Language) -> str: ...
     def parse_agent_output(self, completion: Language) -> tuple[str, str]: ...
 
-class Type1ProcessorConfig(BaseModel):
+@dataclass
+class Type1ProcessorConfig:
     prefix_system: str
     suffix_system: str
     prefix_user: str
