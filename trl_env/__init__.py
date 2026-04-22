@@ -1,4 +1,6 @@
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 from .environment import Action, Delta, Seed, Env
 from .processor import Language, Processor
+from .batch_rollout import batch_rollout, make_rollout_func
+from .model import Model
