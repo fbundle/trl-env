@@ -13,7 +13,7 @@ class Model(Protocol):
     device: torch.device
     def tokenizer_encode(self, input_text: str) -> list[int]: ...
     def tokenizer_decode(self, completion_ids: list[int]) -> str: ...
-    def model_batch_generate(self, input_ids_list: list[list[int]]) -> tuple[list[list[int]], list[Float[Tensor, "n d"]]]: ...
+    def model_batch_generate(self, input_ids_list: list[list[int]]) -> tuple[list[list[int]], list[list[float]]]: ...
 
 
 def collapse_eos_token_id(completion_ids: Int[Tensor, "n"], eos_token_id: int) ->  Int[Tensor, "n1"]:
@@ -59,7 +59,7 @@ class TransformerModel(Model):
         return output_text
 
 
-    def model_batch_generate(self, input_ids_list: list[list[int]]) -> tuple[list[list[int]], list[Float[Tensor, "n d"]]]:
+    def model_batch_generate(self, input_ids_list: list[list[int]]) -> tuple[list[list[int]], list[list[float]]]:
         e: BatchEncoding = self.tokenizer.pad(
             {"input_ids": input_ids_list},
             padding=True,
@@ -78,13 +78,13 @@ class TransformerModel(Model):
         b, n, d = batch_logits.shape
         completion_ids_batch: Int[Tensor, "b n"] = o.sequences[:, -n:]
 
-        completion_ids_batch = completion_ids_batch.detach().cpu()
-
         completion_ids_list : list[list[int]] = []
-        logprobs_list: list[Float[Tensor, "n d"]] = []
+        logprobs_list: list[list[float]] = []
+
         for i in range(b):
             completion_ids: list[int] = collapse_eos_token_id(completion_ids_batch[i, :], self.eos_token_id).tolist()
-            logprobs = batch_logprobs[i, :len(completion_ids), :]
+            # x[[a, b, c, d], [A, B, C, D]] = [x[a, A], x[b, B], x[c, C], x[d, D]]
+            logprobs: list[float] = batch_logprobs[i, range(len(completion_ids)), completion_ids].tolist()
             
             completion_ids_list.append(completion_ids)
             logprobs_list.append(logprobs)
@@ -119,5 +119,5 @@ if __name__ == "__main__":
     input_ids_list = [m.tokenizer_encode(text) for text in input_text]
     completion_ids_list, logprobs_list = m.model_batch_generate(input_ids_list)
     output_text = [m.tokenizer_decode(completion_ids) for completion_ids in completion_ids_list]
-    print(output_text)
+    import pdb; pdb.set_trace()
     

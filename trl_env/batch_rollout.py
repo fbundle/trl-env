@@ -15,36 +15,30 @@ class RolloutState:
     initial_length: int
     conversation: list[int]
     env_mask: list[int]
-    logprobs: Float[Tensor, "n1 d"] | None
+    logprobs: list[float]
     total_step_reward: float
 
     def append_completion(
         self,
         completion_ids: list[int],
-        logprobs: Float[Tensor, "n1 d"] | None,
+        logprobs: list[float] | None,
     ):
         if logprobs is None:
             env_mask = [0] * len(completion_ids)
-            _, d = self.logprobs.shape # type: ignore # self.logprobs must be non-nil
-            logprobs = torch.zeros(size=[len(completion_ids), d])
+            logprobs = [0.0] * len(completion_ids)
         else:
             env_mask = [1] * len(completion_ids)
 
         self.conversation.extend(completion_ids)
         self.env_mask.extend(env_mask)
-        if self.logprobs is None:
-            self.logprobs = logprobs
-        else:
-            # concat logprobs, pass to the newer logprobs device
-            current_logprobs = self.logprobs.to(logprobs.device)
-            self.logprobs = torch.cat([current_logprobs, logprobs], dim=0)
+        self.logprobs.extend(logprobs)
 
 def init_rollout_state(initial_prompt_ids: list[int]) -> RolloutState:
     return RolloutState(
         initial_length=len(initial_prompt_ids),
         conversation=initial_prompt_ids,
         env_mask=[],
-        logprobs=None,
+        logprobs=[],
         total_step_reward=0,
     )
 
