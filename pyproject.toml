@@ -8,6 +8,7 @@ dependencies = [
     "torch==2.11.*",
     "transformers==5.5.*",
     "trl==1.2.*",
+    "mlx-lm==0.31.*",
 ]
 
 [build-system]

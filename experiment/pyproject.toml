@@ -10,7 +10,6 @@ dependencies = [
     "peft==0.19.*",
     "python-dotenv==1.2.*",
     "tensorboard==2.20.*",
-    "mlx-lm==0.31.*",
 ]
 
 [tool.uv.sources]
