@@ -15,6 +15,8 @@ class GuessEnv(Env):
     
     def reset(self, seed: Seed) -> Delta:
         self.target = int(seed)
+        self.turn = 0
+        self.best_points = 0
         self.reward = 0
         self.alive = True
         return """
@@ -53,11 +55,16 @@ I will say if your guess is higher or lower than my number
                   
             return 1.0, number_points, alive, state_delta
 
+        
+
         format_points, number_points, alive, state_delta = helper(action)
-        self.alive = alive
         points = format_points + number_points
-        if points > self.reward: # reward = best
-            self.reward = points
+        
+        self.turn += 1
+        self.alive = alive
+        self.best_points = max(self.best_points, points)
+        self.reward = self.best_points * (0.99)**(self.turn)
+
         return state_delta
 
 rule = """
