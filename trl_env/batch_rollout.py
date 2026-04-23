@@ -2,11 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from torch import Tensor
-from jaxtyping import Float
-import torch
-
-from .environment import Action, Env, Seed
+from .environment import Env, Seed
 from .model import Model
 from .processor import Processor
 
