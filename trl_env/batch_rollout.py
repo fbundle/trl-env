@@ -125,15 +125,32 @@ def batch_rollout(
 from typing import Any
 from trl.trainer.grpo_trainer import RolloutFunc, GRPOTrainer, RewardFunc
 
-def make_rollout_func(
-    model: Model, processor: Processor, env_factory: Callable[[], Env],
-    system_prompt: str, max_conversation_length: int,
-) -> tuple[RolloutFunc, RewardFunc]:
-    def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
+class RolloutWithLog:
+    def __init__(
+        self,
+        model: Model, processor: Processor, env_factory: Callable[[], Env],
+        system_prompt: str, max_conversation_length: int,
+        log: Callable[[str], None],
+    ) -> None:
+        self.count = 0
+        self.log = log
+        self.model = model
+        self.processor = processor
+        self.env_factory = env_factory
+        self.system_prompt = system_prompt
+        self.max_conversation_length = max_conversation_length
+        
+    def make_count_log(self) -> Callable[[str], None]:
+        self.count += 1
+        prefix = f"[experiment_{self.count}]"
+        return lambda message: self.log(prefix + " " + message)
+    
+    def rollout_func(self, prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         state_list = batch_rollout(
-            model=model, processor=processor, env_factory=env_factory,
-            system_prompt=system_prompt, max_conversation_length=max_conversation_length,
+            model=self.model, processor=self.processor, env_factory=self.env_factory,
+            system_prompt=self.system_prompt, max_conversation_length=self.max_conversation_length,
             seed_list=prompts,
+            log=self.make_count_log(),
         )
         return {
             "prompt_ids": [state.conversation[:state.initial_length] for state in state_list],
@@ -142,8 +159,5 @@ def make_rollout_func(
             "logprobs": [state.logprobs for state in state_list],
             "reward": [state.reward for state in state_list],
         }
-
-    def reward_func(prompts: list[str], completions: list[str], reward: list[float], **kwargs) -> list[float]:
+    def reward_func(self, prompts: list[str], completions: list[str], reward: list[float], **kwargs) -> list[float]:
         return reward
-    
-    return rollout_func, reward_func # type: ignore

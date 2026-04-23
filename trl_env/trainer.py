@@ -7,7 +7,7 @@ import torch
 from transformers import TrainerCallback
 from transformers.trainer_utils import get_last_checkpoint
 
-from .batch_rollout import make_rollout_func
+from .batch_rollout import RolloutWithLog
 from .trainer_config import TrainConfig
 from .trainer_util import Callback, get_hf_info
 
@@ -98,14 +98,17 @@ def train(config: TrainConfig):
         **train_config_kwargs,
     )
 
-    rollout_func, reward_func = make_rollout_func(
+
+
+    rollout_with_log = RolloutWithLog(
         model=config.model,
         processor=config.processor,
         env_factory=config.env_factory,
         system_prompt=config.system_prompt,
         max_conversation_length=config.max_conversation_length,
+        log=print,
     )
-
+    rollout_func, reward_func = rollout_with_log.rollout_func, rollout_with_log.reward_func
 
     trainer = GRPOTrainer(
         args=training_args,
