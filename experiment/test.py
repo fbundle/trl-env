@@ -1,6 +1,6 @@
 import sglang as sgl
 
-llm = sgl.Engine(model_path="qwen/qwen2.5-0.5b-instruct")
+llm = sgl.Engine(model_path="Qwen/Qwen3.5-0.8B")
 
 prompts = [
     "Hello, my name is",
