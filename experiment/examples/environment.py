@@ -61,6 +61,7 @@ I will say if your guess is higher or lower than my number
 
 # PrimeFactorEnv
 from pydantic import BaseModel
+from py_mini_racer import MiniRacer
 import re
 
 def parse_tool_call(s: str) -> tuple[str, str] | None:
@@ -87,12 +88,16 @@ class DiscreteLogarithmEnv(Env):
         self.reward = 0
         self.alive = False
         self.step_count = 0
+        self.mini_racer = MiniRacer()
         self.seed: DiscreteLogarithmSeed | None = None
     
-    def reset(self, seed: Seed) -> Action:
+    def reset(self, seed: Seed) -> Delta:
         self.seed = DiscreteLogarithmSeed.model_validate_json(seed)
         return f"""
 Find x such that {self.seed.g}^x = {self.seed.h} (mod {self.seed.p}), discrete logarithm problem
 
 
 """
+    def step(self, action: Action) -> Delta:
+        self.mini_racer.eval(code, timeout=5000, max_memory=50 * 1024 * 1024)  # 5s, 50MB
+        pass

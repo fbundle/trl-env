@@ -1,4 +1,5 @@
 from __future__ import annotations
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Callable
 
@@ -39,17 +40,12 @@ def init_rollout_state(initial_prompt_ids: list[int]) -> RolloutState:
     )
 
 
+
 def batch_rollout(
     model: Model, processor: Processor, env_factory: Callable[[], Env],
     system_prompt: str, max_conversation_length: int,
-    seed_list: list[Seed],
-    log: Callable[[str], None] | None = None, 
+    seed_list: list[Seed], 
 ) -> list[RolloutState]:
-    def LOG_LINE(s: str):
-        if log is not None:
-            log(s + "\n")
-
-    LOG_LINE("system>\t" + system_prompt)
     system_prompt_ids = model.tokenizer_encode(processor.init_system_input(system_prompt))
     
     env_list: list[Env] = []
@@ -57,7 +53,6 @@ def batch_rollout(
     for i, seed in enumerate(seed_list):
         env = env_factory()
         initial_delta = env.reset(seed)
-        LOG_LINE(f"user_{i}>\t" + initial_delta)
 
         # assuming tokenizer is additive
         # tok(a ++ b) = tok(a) ++ tok(b)
@@ -68,57 +63,60 @@ def batch_rollout(
         env_list.append(env)
         state_list.append(state)
 
-    # while some environment is still not termininate
-    while sum([env.alive for env in env_list]) > 0:
-        # MODEL BATCH GENERATE
-        # TODO - consider giving `past_key_values`
-        # i.e. give the model the last hidden states so that it won't recalculate everything from the beginning
-        completion_ids_list, logprobs_list = model.model_batch_generate([state.conversation for state in state_list])
 
-        for env, state, completion_ids, logprobs in zip(env_list, state_list, completion_ids_list, logprobs_list):
-            # IF NOT ALIVE
-            if not env.alive:
-                continue
-            # APPEND AGENT COMPLETION
-            state.append_completion(
-                completion_ids=completion_ids,
-                logprobs=logprobs,
-            )
 
-            # PARSE ACTION
-            completion_text = model.tokenizer_decode(completion_ids)
-            reason, action = processor.parse_agent_output(completion_text)
-            LOG_LINE(f"agent_{i}>\t" + action)
+    with ThreadPoolExecutor(max_workers=len(env_list)) as executor:
+        # while some environment is still not termininate
+        while sum([env.alive for env in env_list]) > 0:
+            # MODEL BATCH GENERATE
+            # TODO - consider giving `past_key_values`
+            # i.e. give the model the last hidden states so that it won't recalculate everything from the beginning
+            completion_ids_list, logprobs_list = model.model_batch_generate([state.conversation for state in state_list])
+
+            # PROCESS GENERATE
+            def process_generate(env: Env, state: RolloutState, completion_ids: list[int], logprobs: list[float]) -> tuple[Env, RolloutState]:
+                # precheck env.alive
+                if not env.alive:
+                    return env, state
+                # append agent completion
+                state.append_completion(
+                    completion_ids=completion_ids,
+                    logprobs=logprobs,
+                )
+                # parse (reason, action)
+                completion_text = model.tokenizer_decode(completion_ids)
+                reason, action = processor.parse_agent_output(completion_text)
+                # interact with environment
+                delta = env.step(action)
+                # save reward
+                state.reward = env.reward
+                # postcheck env.alive
+                if not env.alive:
+                    return env, state
+                # append environment completion
+                # assuming tokenizer is additive
+                # tok(a ++ b) = tok(a) ++ tok(b)
+                delta_ids = model.tokenizer_encode(processor.append_user_input(delta))
+                state.append_completion(
+                    completion_ids=delta_ids,
+                    logprobs=None,
+                )
+                # terminate env if conversation is long
+                if len(state.conversation) >= max_conversation_length:
+                    env.alive = False
+                
+                return env, state
+
+
+            # PROCESS GENERATE
+            for i, (env, state) in enumerate(executor.map(lambda xs: process_generate(*xs), zip(
+                env_list, state_list,
+                completion_ids_list, logprobs_list,
+            ))):
+                env_list[i] = env
+                state_list[i] = state
         
-            # INTERACT WITH ENVIRONMENT
-            delta = env.step(action)
-            LOG_LINE(f"user_{i}>\t" + delta)
-
-            # WRITE REWARD
-            LOG_LINE(f"log_{i}>\t" + f"reward: {state.reward} -> {env.reward}")
-            state.reward = env.reward
-
-            # IF NOT ALIVE
-            if not env.alive:
-                continue
-            
-            # APPEND ENVIRONMENT COMPLETION
-            # assuming tokenizer is additive
-            # tok(a ++ b) = tok(a) ++ tok(b)
-            delta_ids = model.tokenizer_encode(processor.append_user_input(delta))
-            state.append_completion(
-                completion_ids=delta_ids,
-                logprobs=None,
-            )
-
-            # TERMINATE ENV
-            if len(state.conversation) >= max_conversation_length:
-                env.alive = False
-                continue
-            
-            LOG_LINE(f"log_{i}>\t" + f"conversation length {len(state.conversation)}")
-    
-    return state_list
+        return state_list
 
 
 # for GRPO
@@ -127,39 +125,23 @@ from trl.trainer.grpo_trainer import RolloutFunc, GRPOTrainer, RewardFunc
 from .model import TransformerModel
 import torch
 
-class RolloutWithLog:
-    def __init__(
-        self,
-        model: TransformerModel, processor: Processor, env_factory: Callable[[], Env],
-        system_prompt: str, max_conversation_length: int,
-        log: Callable[[str], None],
-    ) -> None:
-        self.count = 0
-        self.log = log
-        self.model = model
-        self.processor = processor
-        self.env_factory = env_factory
-        self.system_prompt = system_prompt
-        self.max_conversation_length = max_conversation_length
-        
-    def make_count_log(self) -> Callable[[str], None]:
-        self.count += 1
-        prefix = f"[experiment_{self.count}]"
-        return lambda message: self.log(prefix + " " + message)
-    
-    def rollout_func(self, prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
+
+def make_rollout_func(
+    model: TransformerModel, processor: Processor, env_factory: Callable[[], Env],
+    system_prompt: str, max_conversation_length: int,
+) -> RolloutFunc:
+    def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         try:
             # NOTE - only rollout on eval mode
-            self.model.model.eval()
+            model.model.eval()
             with torch.no_grad():
                 state_list = batch_rollout(
-                    model=self.model, processor=self.processor, env_factory=self.env_factory,
-                    system_prompt=self.system_prompt, max_conversation_length=self.max_conversation_length,
+                    model=model, processor=processor, env_factory=env_factory,
+                    system_prompt=system_prompt, max_conversation_length=max_conversation_length,
                     seed_list=prompts,
-                    log=self.make_count_log(),
                 )
         finally:
-            self.model.model.train()
+            model.model.train()
         
         return {
             "prompt_ids": [state.conversation[:state.initial_length] for state in state_list],
@@ -168,5 +150,9 @@ class RolloutWithLog:
             "logprobs": [state.logprobs for state in state_list],
             "reward": [state.reward for state in state_list],
         }
-    def reward_func(self, prompts: list[str], completions: list[str], reward: list[float], **kwargs) -> list[float]:
+
+    return rollout_func
+
+
+def reward_func(prompts: list[str], completions: list[str], reward: list[float], **kwargs) -> list[float]:
         return reward
