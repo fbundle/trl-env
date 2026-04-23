@@ -11,19 +11,26 @@ from accelerate import PartialState
 
 
 from experiment.examples.discrete_logarithm.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
-from trl_trainer.dataset import LazyDataset
+from experiment.examples.trl_trainer.dataset import LazyDataset
 from trl_env.model import TransformerModel
-from trl_trainer.trainer import train
-from trl_trainer.trainer_config import Mode, TrainConfig
+from experiment.examples.trl_trainer.trainer import train
+from experiment.examples.trl_trainer.trainer_config import Mode, TrainConfig
 from trl_env.processor import qwen3_instruct_processor, qwen3_processor
 
 
 def load_model_and_tokenizer(model_path: str):
+    has_cuda = torch.cuda.is_available()
+    if has_cuda:
+        attn_implementation = "flash_attention_2"
+    else:
+        attn_implementation = "sdpa"
+
     tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=model_path)
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         dtype=torch.bfloat16,
         device_map="auto",
+        attn_implementation=attn_implementation,
     )
     lora_config = LoraConfig(
         r=16,
@@ -161,6 +168,9 @@ def main(train_mode: Mode, uuid: str, debug: bool):
     train(config)
 
 if __name__ == "__main__":
+    from dotenv import load_dotenv
+    load_dotenv()
+
     MODE = sys.argv[1]
     UUID = "test"
     if len(sys.argv) >= 3:
