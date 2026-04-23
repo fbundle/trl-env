@@ -20,7 +20,7 @@ class RolloutState:
         self,
         completion_ids: list[int],
         logprobs: list[float] | None,
-    ):
+    ) -> RolloutState:
         if logprobs is None:
             env_mask = [0] * len(completion_ids)
             logprobs = [0.0] * len(completion_ids)
@@ -30,6 +30,7 @@ class RolloutState:
         self.conversation.extend(completion_ids)
         self.env_mask.extend(env_mask)
         self.logprobs.extend(logprobs)
+        return self
 
 def init_rollout_state(initial_prompt_ids: list[int]) -> RolloutState:
     return RolloutState(
@@ -57,8 +58,7 @@ def batch_rollout(
     env_list: list[Env] = []
     state_list: list[RolloutState] = []
     for i, seed in enumerate(seed_list):
-        env = env_factory()
-        initial_delta = env.reset(seed)
+        env, initial_delta = env_factory().reset(seed)
 
         LOG(i, "system", system_prompt)
         LOG(i, "user", initial_delta)
@@ -86,7 +86,7 @@ def batch_rollout(
                 if not env.alive:
                     return i, env, state
                 # append agent completion
-                state.append_completion(
+                state = state.append_completion(
                     completion_ids=completion_ids,
                     logprobs=logprobs,
                 )
@@ -95,7 +95,7 @@ def batch_rollout(
                 LOG(i, "assistant", completion_text)
                 reason, action = processor.parse_agent_output(completion_text)
                 # interact with environment
-                delta = env.step(action)
+                env, delta = env.step(action)
                 LOG(i, "user", delta)
                 # save reward
                 state.reward = env.reward
@@ -107,7 +107,7 @@ def batch_rollout(
                 # assuming tokenizer is additive
                 # tok(a ++ b) = tok(a) ++ tok(b)
                 delta_ids = model.tokenizer_encode(processor.append_user_input(delta))
-                state.append_completion(
+                state = state.append_completion(
                     completion_ids=delta_ids,
                     logprobs=None,
                 )

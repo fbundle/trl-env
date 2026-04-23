@@ -18,15 +18,15 @@ Every turn, you have to take a guess.
 I will say if your guess is higher or lower than my number
 """
     
-    def reset(self, seed: Seed) -> Delta:
+    def reset(self, seed: Seed) -> tuple[Env, Delta]:
         self.target = int(seed)
         self.turn = 0
         self.best_points = 0
         self.reward = 0
         self.alive = True
-        return self.initial_delta
+        return self,  self.initial_delta
     
-    def step(self, action: Action) -> Delta:
+    def step(self, action: Action) -> tuple[Env, Delta]:
         def helper(action: str) -> tuple[float, float, bool, str]:
             guess = extract_last_integer(action)
 
@@ -56,7 +56,7 @@ I will say if your guess is higher or lower than my number
         self.best_points = max(self.best_points, points)
         self.reward = self.best_points * (0.99)**(self.turn)
 
-        return state_delta
+        return self, state_delta
     
 
 

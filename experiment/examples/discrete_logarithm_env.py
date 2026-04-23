@@ -88,7 +88,7 @@ class DiscreteLogarithmEnv(Env):
         self.mini_racer: MiniRacer = MiniRacer()
         self.seed: DiscreteLogarithmSeed | None = None
     
-    def reset(self, seed: Seed) -> Delta:
+    def reset(self, seed: Seed) -> tuple[Env, Delta]:
         self.reward = 0
         self.alive = True
         self.step_count = 0
@@ -97,7 +97,7 @@ class DiscreteLogarithmEnv(Env):
         self.seed = DiscreteLogarithmSeed.model_validate_json(seed)
 
         # TODO - consider input the source code of the environment into the first prompt
-        return f"""
+        return self, f"""
 Find x such that {self.seed.g}^x = {self.seed.h} (mod {self.seed.p}), this is the discrete logarithm problem
 You are allow to use javascript by writing
 
@@ -113,7 +113,7 @@ If you are confident with your answer, write
 
 Note that, only the first match is consider. Once the answer is given, the environment is terminated.
 """
-    def step(self, action: Action) -> Delta:
+    def step(self, action: Action) -> tuple[Env, Delta]:
         assert self.seed is not None
         g, h, p = self.seed.g, self.seed.h, self.seed.p
 
@@ -132,7 +132,7 @@ Note that, only the first match is consider. Once the answer is given, the envir
         self.best_points = max(points, self.best_points)
         self.reward = self.best_points * 0.999**self.step_count
         
-        return delta
+        return self,  delta
 
 if __name__ == "__main__":
     print(open(__file__).read())

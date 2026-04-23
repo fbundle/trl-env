@@ -3,7 +3,7 @@ import sys
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from experiment.examples.environment import GuessEnv
+from experiment.examples.guess_env import GuessEnv
 from trl_env.batch_rollout import batch_rollout
 from trl_env.model import TransformerModel
 from trl_env.processor import qwen3_instruct_processor
@@ -13,6 +13,9 @@ rule = """
 every turn, you can output a maximum number of {max_turn_tokens} tokens
 the whole conversation should not last longer than {max_conversation_length} tokens
 """
+
+def logger(i: int, role: str, content: str):
+    print(f"{role}> {content}")
 
 def main():
     model_path = "Qwen/Qwen3.5-0.8B"
@@ -46,6 +49,7 @@ def main():
             env_factory=lambda : GuessEnv(0, 50), seed_list=["36"],
             system_prompt=system_prompt,
             max_conversation_length=max_conversation_length,
+            conversation_logger=logger,
         )
         print(o[0].reward)
 
