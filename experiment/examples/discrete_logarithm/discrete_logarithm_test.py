@@ -7,7 +7,7 @@ from trl_env.batch_rollout import batch_rollout
 from trl_env.model import TransformerModel
 from trl_env.processor import qwen3_instruct_processor, qwen3_processor
 
-from experiment.examples.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
+from experiment.examples.discrete_logarithm.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
 
 
 def logger(i: int, role: str, content: str):
