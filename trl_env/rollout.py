@@ -136,7 +136,7 @@ def batch_rollout(
 # for GRPO
 from typing import Any
 from trl.trainer.grpo_trainer import RolloutFunc, GRPOTrainer, RewardFunc
-from .engine import TransformerEngine
+from .engine_transformer import TransformerEngine
 import torch
 
 

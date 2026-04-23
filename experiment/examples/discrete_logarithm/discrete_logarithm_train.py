@@ -16,7 +16,7 @@ from experiment.examples.discrete_logarithm.discrete_logarithm_env import Discre
 from experiment.examples.trl_trainer_util.dataset import LazyDataset
 from experiment.examples.trl_trainer_util.trainer_callback import TimeBasedLogSaveCallback
 from trl_env.rollout import make_reward_func, make_rollout_func
-from trl_env.engine import TransformerEngine
+from trl_env.engine_transformer import TransformerEngine
 from trl_env.processor import deepseekr1_processor, qwen3_processor
 
 
