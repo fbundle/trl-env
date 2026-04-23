@@ -1,12 +1,9 @@
 from trl_env.environment import Action, Delta, Env, Seed
 
-import re
-
-
-
-
-# examples GuessEnv
+# GuessEnv
 # reward must be dense enough in the space of all texts so that it would learn easier
+
+import re
 
 def extract_last_integer(s: str) -> int | None:
     matches = re.findall(r'-?\d+', s)
@@ -60,3 +57,24 @@ I will say if your guess is higher or lower than my number
         self.reward = self.best_points * (0.99)**(self.turn)
 
         return state_delta
+    
+
+# PrimeFactorEnv
+from pydantic import BaseModel
+import re
+
+def parse_tool_call(s: str) -> tuple[str, str] | None:
+    match = re.search(r'<tool_call tool="(\w+)">(.*?)</tool_call>', s, re.DOTALL)
+    if match is None:
+        return None
+    return match.group(1), match.group(2).strip()
+
+assert parse_tool_call('<tool_call tool="mini_racer"> code </tool_call>') == ("mini_racer", "code")
+assert parse_tool_call('some text <tool_call tool="js"> x + 1 </tool_call> more') == ("js", "x + 1")
+assert parse_tool_call("no tool call here") is None
+
+class PrimeFactorSeed(BaseModel):
+    pass
+
+class PrimeFactorEnv:
+    pass
