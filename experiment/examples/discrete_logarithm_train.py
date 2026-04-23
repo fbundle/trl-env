@@ -111,7 +111,7 @@ def main(train_mode: Mode, uuid: str, debug: bool):
     debug_model_path = "Qwen/Qwen3.5-0.8B"
     output_dir = f"mnt/output/discrete-logarithm-{os.path.basename(model_path)}-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-{uuid}"
     deepspeed = "conf/ds_zero2.json"
-    deepspeed = None
+    deepspeed = None # TODO - change to deepspeed for multi GPUs
     
     if debug:
         model_path = debug_model_path
