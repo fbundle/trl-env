@@ -4,12 +4,11 @@ dynamic = ["version"]
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
-    "jaxtyping>=0.3.9",
-    "torch>=2.11.0",
-    "transformers>=5.6.0",
-    "trl>=1.2.0",
+    "jaxtyping==0.3.*",
+    "torch==2.11.*",
+    "transformers==5.6.*",
+    "trl==1.2.*",
 ]
-
 
 [build-system]
 requires = ["hatchling"]
@@ -20,3 +19,13 @@ path = "trl_env/__init__.py"
 
 [tool.uv.workspace]
 members = ["experiment"]
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cu126", marker = "sys_platform == 'linux'" },
+]
