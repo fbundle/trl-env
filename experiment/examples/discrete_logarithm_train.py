@@ -10,7 +10,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from accelerate import PartialState
 
 
-from experiment.examples.discrete_logarithm_environment import DiscreteLogarithmEnv, DiscreteLogarithmSeed
+from experiment.examples.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed
 from trl_env.dataset import LazyDataset
 from trl_env.model import TransformerModel
 from trl_env.trainer import train
