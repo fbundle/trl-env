@@ -29,6 +29,7 @@ done &
 export NCCL_TIMEOUT=3600000  # 1 hour
 export TORCH_DISTRIBUTED_DEBUG=DETAIL
 export NCCL_ASYNC_ERROR_HANDLING=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 UV="$HOME/miniforge3/envs/test/bin/uv"
 $UV run accelerate launch -m {recipe_module} train {uuid} |& tee log/run_{job_name}.log

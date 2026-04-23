@@ -34,7 +34,6 @@ class TrainConfig:
 
     # OTHERS
     deepspeed: str | None = None
-    generation_kwargs: dict[str, Any] | None = None
     train_config_kwargs: dict[str, Any] | None = None
     push_to_hub: bool = False
 

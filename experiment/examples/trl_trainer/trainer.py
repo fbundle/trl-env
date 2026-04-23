@@ -55,7 +55,6 @@ def train(config: TrainConfig):
         num_train_epochs=1,
         deepspeed=config.deepspeed,
 
-        # TODO - since we do our own rollout, I wonder if we still need these
 
         per_device_train_batch_size=config.per_device_batch_size,
         num_generations=config.num_generations,
@@ -88,7 +87,6 @@ def train(config: TrainConfig):
         gradient_checkpointing=True,
 
         # others
-        generation_kwargs=generation_kwargs,
         **train_config_kwargs,
     )
 

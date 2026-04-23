@@ -114,11 +114,13 @@ def main(train_mode: Mode, uuid: str, debug: bool):
     
     data = LazyDataset[str](n=train_size, f=f)
 
+    env_factory = lambda: DiscreteLogarithmEnv()
+
     processor = qwen3_processor
     model_path = "Qwen/Qwen3.5-4B"
     debug_model_path = "Qwen/Qwen3.5-0.8B"
 
-    
+
     output_dir = f"mnt/output/discrete-logarithm-{os.path.basename(model_path)}-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-{uuid}"
     deepspeed = "conf/ds_zero2.json"
     deepspeed = None # TODO - change to deepspeed for multi GPUs
@@ -147,7 +149,7 @@ def main(train_mode: Mode, uuid: str, debug: bool):
             ),
         ),
         data=data,
-        env_factory=lambda: DiscreteLogarithmEnv(),
+        env_factory=env_factory,
         max_turn_length=max_turn_length,
 
         per_device_batch_size=per_device_batch_size,
@@ -156,7 +158,6 @@ def main(train_mode: Mode, uuid: str, debug: bool):
         max_conversation_length=max_conversation_length,
         gradient_accumulation_steps=gradient_accumulation_steps,
 
-        generation_kwargs=dict(),
         train_config_kwargs=dict(
             learning_rate = 1e-6,
             weight_decay = 0.001,
