@@ -129,7 +129,7 @@ def load_env_and_data(effective_batch_size: int):
         data,
     )
 
-def load_model(mode: Mode, max_turn_length: int):
+def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
     processor = qwen3_processor
     model_path = "Qwen/Qwen3.5-4B"
     debug_model_path = "Qwen/Qwen3.5-0.8B"
@@ -154,7 +154,7 @@ def load_model(mode: Mode, max_turn_length: int):
     )
     # in prepare mode, always generate in full to monitor GPU memory
     if mode == ModePrepare:
-        generation_kwargs["min_new_tokens"] = max_turn_length
+        generation_kwargs["min_new_tokens"] = max_conversation_length
 
     model = TransformerModel(
         tokenizer=tokenizer,
@@ -191,13 +191,13 @@ def main(mode: Mode, uuid: str):
     (
         env_factory,
         data,
-    ) = load_env_and_data()
+    ) = load_env_and_data(effective_batch_size=effective_batch_size)
     (
         model_path,
         processor,
         model,
         deepspeed,
-    ) = load_model()
+    ) = load_model(mode=mode, max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
 
     output_dir = f"mnt/output/discrete-logarithm-{os.path.basename(model_path)}-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-{uuid}"
 
