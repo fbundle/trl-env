@@ -1,14 +1,23 @@
-from typing import Any
+from typing import Any, Callable
 
 from jaxtyping import Int, Float
 import torch
 from transformers import BatchEncoding, PreTrainedModel, PreTrainedTokenizerBase
 import warnings
 
+import torch
 from torch import Tensor
 from torch.functional import F # type: ignore
 
-from trl_env.engine import Engine  
+from trl_env.engine import Engine
+from trl_env.environment import Env
+from trl_env.processor import Processor  
+
+from typing import Any
+from trl.trainer.grpo_trainer import RolloutFunc, GRPOTrainer, RewardFunc
+
+from trl_env.rollout import batch_rollout
+
 
 
 def collapse_eos_token_id(completion_ids: Int[Tensor, "n"], eos_token_id: int) ->  Int[Tensor, "n1"]:
@@ -90,7 +99,43 @@ class TransformerEngine(Engine):
             logprobs_list.append(logprobs)
         
         return completion_ids_list, logprobs_list
-    
+
+
+
+
+def make_rollout_func(
+    engine: TransformerEngine, processor: Processor, env_factory: Callable[[], Env],
+    system_prompt: str, max_conversation_length: int,
+) -> RolloutFunc:
+    def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
+        try:
+            # NOTE - only rollout on eval mode
+            engine.model.eval()
+            with torch.no_grad():
+                state_list = batch_rollout(
+                    engine=engine, processor=processor, env_factory=env_factory,
+                    system_prompt=system_prompt, max_conversation_length=max_conversation_length,
+                    seed_list=prompts,
+                )
+        finally:
+            engine.model.train()
+        
+        return {
+            "prompt_ids": [state.conversation[:state.initial_length] for state in state_list],
+            "completion_ids": [state.conversation[state.initial_length:] for state in state_list],
+            "env_mask": [state.env_mask for state in state_list],
+            "logprobs": [state.logprobs for state in state_list],
+            "reward": [state.reward for state in state_list],
+        }
+
+    return rollout_func
+
+def make_reward_func() -> RewardFunc:
+    def reward_func(prompts: list[str], completions: list[str], reward: list[float], **kwargs) -> list[float]:
+            return reward
+    return reward_func # type: ignore
+
+
 if __name__ == "__main__":
     from transformers import AutoTokenizer, AutoModelForCausalLM
     path = "Qwen/Qwen3.5-0.8B"
