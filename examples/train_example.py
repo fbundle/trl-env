@@ -42,19 +42,18 @@ def load_model_and_tokenizer(model_path: str):
     )
     model = get_peft_model(model, lora_config)
     return model, tokenizer
-
-
 class GuessEnv(Env):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
     
     def reset(self, seed: Seed) -> Delta:
         self.target = int(seed)
-        self.best_reward = 0
-        self.last_step_reward = 0
+        self.turn = 0
+        self.best_points = 0
+        self.reward = 0
         self.alive = True
         return """
-I have an integer between 0 and 10000 in mind
+I have an integer between 0 and 50 in mind
 every turn, you have to take a guess, output
 GUESS <number>
 I will say if your guess is higher or lower than my number
@@ -78,24 +77,27 @@ I will say if your guess is higher or lower than my number
 
             f = lambda x: 1 / (1 + x) # map [0, inf) -> [1, 0)
             number_points = f(abs(self.target - guess))
+            alive = True
             if guess < self.target:
                 state_delta = f"{guess} is too low"
             elif guess > self.target:
                 state_delta = f"{guess} is too high"
             else:
                 state_delta = f"{guess} is correct"
-                self.alive = False
+                alive = False
                   
-            return 1.0, number_points, True, state_delta
+            return 1.0, number_points, alive, state_delta
+
+        
 
         format_points, number_points, alive, state_delta = helper(action)
-        self.alive = alive
         points = format_points + number_points
-        if points > self.best_reward:
-            self.last_step_reward = points - self.best_reward
-            self.best_reward = points
-        else:
-            self.last_step_reward = 0
+        
+        self.turn += 1
+        self.alive = alive
+        self.best_points = max(self.best_points, points)
+        self.reward = self.best_points * (0.99)**(self.turn)
+
         return state_delta
 
 def main(train_mode: Mode, uuid: str, debug: bool):
@@ -170,7 +172,7 @@ the whole conversation should not last longer than {max_conversation_length} tok
             model=model, # type: ignore
             generation_kwargs=dict(
                 max_new_tokens=max_turn_length,
-                temperature=1.0,
+                temperature=0.6,
             ),
         ),
         data=data,
