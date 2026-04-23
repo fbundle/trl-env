@@ -15,7 +15,7 @@ from experiment.examples.trl_trainer.dataset import LazyDataset
 from trl_env.model import TransformerModel
 from experiment.examples.trl_trainer.trainer import train
 from experiment.examples.trl_trainer.trainer_config import Mode, TrainConfig
-from trl_env.processor import qwen3_instruct_processor, qwen3_processor
+from trl_env.processor import deepseekr1_processor, qwen3_processor
 
 
 def load_model_and_tokenizer(model_path: str):
@@ -114,8 +114,11 @@ def main(train_mode: Mode, uuid: str, debug: bool):
     
     data = LazyDataset[str](n=train_size, f=f)
 
+    processor = qwen3_processor
     model_path = "Qwen/Qwen3.5-4B"
     debug_model_path = "Qwen/Qwen3.5-0.8B"
+
+    
     output_dir = f"mnt/output/discrete-logarithm-{os.path.basename(model_path)}-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-{uuid}"
     deepspeed = "conf/ds_zero2.json"
     deepspeed = None # TODO - change to deepspeed for multi GPUs
@@ -133,7 +136,7 @@ def main(train_mode: Mode, uuid: str, debug: bool):
         mode=train_mode,
         deepspeed=deepspeed,
         output_dir=output_dir,
-        processor=qwen3_processor,
+        processor=processor,
         system_prompt=rule,
         model=TransformerModel(
             tokenizer=tokenizer,
