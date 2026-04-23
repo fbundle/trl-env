@@ -24,7 +24,6 @@ assert parse_tool_call("no tool call") is None
 assert parse_answer('<|box_start|> 42 <|box_end|>') == "42"
 assert parse_answer("no answer") is None
 
-
 def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, cap: int, action: str) -> tuple[float, bool, str]:
     answer_str = parse_answer(action)
     if answer_str is not None:
@@ -96,6 +95,8 @@ class DiscreteLogarithmEnv(Env):
 
         self.mini_racer = MiniRacer()
         self.seed = DiscreteLogarithmSeed.model_validate_json(seed)
+
+        # TODO - consider input the source code of the environment into the first prompt
         return f"""
 Find x such that {self.seed.g}^x = {self.seed.h} (mod {self.seed.p}), this is the discrete logarithm problem
 You are allow to use javascript by writing
@@ -111,8 +112,6 @@ If you are confident with your answer, write
 <|box_start|> answer <|box_end|>
 
 Note that, only the first match is consider. Once the answer is given, the environment is terminated.
-The source code of this environment is
-{self.source}
 """
     def step(self, action: Action) -> Delta:
         assert self.seed is not None
