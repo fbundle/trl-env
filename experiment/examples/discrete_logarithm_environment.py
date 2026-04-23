@@ -135,3 +135,5 @@ The source code of this environment is
         
         return delta
 
+if __name__ == "__main__":
+    print(open(__file__).read())
