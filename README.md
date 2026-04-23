@@ -47,3 +47,5 @@ class Processor(Protocol):
 # EXAMPLES
 
 [TRL-ENV](https://github.com/fbundle/trl-env) provides a very simple example for training agentic LLM. See `experiment/examples`
+
+- install all dependencies `uv sync --all-packages`

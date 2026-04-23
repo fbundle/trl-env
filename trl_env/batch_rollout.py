@@ -1,7 +1,8 @@
 from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Callable
+import threading
+from typing import Callable, Protocol
 
 from .environment import Env, Seed
 from .model import Model
@@ -39,13 +40,18 @@ def init_rollout_state(initial_prompt_ids: list[int]) -> RolloutState:
         reward=None,
     )
 
-
-
 def batch_rollout(
     model: Model, processor: Processor, env_factory: Callable[[], Env],
     system_prompt: str, max_conversation_length: int,
     seed_list: list[Seed], 
+    conversation_logger: Callable[[int, str, str], None] | None = None,
 ) -> list[RolloutState]:
+    _log_lock = threading.Lock()
+    def LOG(i: int, role: str, content: str):
+        if conversation_logger is not None:
+            with _log_lock:
+                conversation_logger(i, role, content)
+
     system_prompt_ids = model.tokenizer_encode(processor.init_system_input(system_prompt))
     
     env_list: list[Env] = []
@@ -53,6 +59,9 @@ def batch_rollout(
     for i, seed in enumerate(seed_list):
         env = env_factory()
         initial_delta = env.reset(seed)
+
+        LOG(i, "system", system_prompt)
+        LOG(i, "user", initial_delta)
 
         # assuming tokenizer is additive
         # tok(a ++ b) = tok(a) ++ tok(b)
@@ -63,8 +72,6 @@ def batch_rollout(
         env_list.append(env)
         state_list.append(state)
 
-
-
     with ThreadPoolExecutor(max_workers=len(env_list)) as executor:
         # while some environment is still not termininate
         while sum([env.alive for env in env_list]) > 0:
@@ -74,10 +81,10 @@ def batch_rollout(
             completion_ids_list, logprobs_list = model.model_batch_generate([state.conversation for state in state_list])
 
             # PROCESS GENERATE
-            def process_generate(env: Env, state: RolloutState, completion_ids: list[int], logprobs: list[float]) -> tuple[Env, RolloutState]:
+            def process_generate(i: int, env: Env, state: RolloutState, completion_ids: list[int], logprobs: list[float]) -> tuple[int, Env, RolloutState]:
                 # precheck env.alive
                 if not env.alive:
-                    return env, state
+                    return i, env, state
                 # append agent completion
                 state.append_completion(
                     completion_ids=completion_ids,
@@ -85,14 +92,17 @@ def batch_rollout(
                 )
                 # parse (reason, action)
                 completion_text = model.tokenizer_decode(completion_ids)
+                LOG(i, "assistant", completion_text)
                 reason, action = processor.parse_agent_output(completion_text)
                 # interact with environment
                 delta = env.step(action)
+                LOG(i, "user", delta)
                 # save reward
                 state.reward = env.reward
                 # postcheck env.alive
                 if not env.alive:
-                    return env, state
+                    LOG(i, "log", "env terminated")
+                    return i, env, state
                 # append environment completion
                 # assuming tokenizer is additive
                 # tok(a ++ b) = tok(a) ++ tok(b)
@@ -104,16 +114,19 @@ def batch_rollout(
                 # terminate env if conversation is long
                 if len(state.conversation) >= max_conversation_length:
                     env.alive = False
+                    LOG(i, "log", "env terminated due to long conversation")
                 
-                return env, state
+                return i, env, state
 
 
             # BATCH PROCESS GENERATE
             # NOTE - we wish to use multiprocess here, but it might interfere with torch/accelerate
-            for i, (env, state) in enumerate(executor.map(lambda xs: process_generate(*xs), zip(
+            output_iter = executor.map(lambda xs: process_generate(*xs), zip(
+                range(len(env_list)),
                 env_list, state_list,
                 completion_ids_list, logprobs_list,
-            ))):
+            ))
+            for i, env, state in output_iter:
                 env_list[i] = env
                 state_list[i] = state
         
