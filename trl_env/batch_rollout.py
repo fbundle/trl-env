@@ -108,7 +108,7 @@ def batch_rollout(
                 return env, state
 
 
-            # PROCESS GENERATE
+            # BATCH PROCESS GENERATE
             for i, (env, state) in enumerate(executor.map(lambda xs: process_generate(*xs), zip(
                 env_list, state_list,
                 completion_ids_list, logprobs_list,
