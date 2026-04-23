@@ -8,8 +8,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from accelerate import PartialState
 
 
+from experiment.examples.environment import GuessEnv
 from trl_env.dataset import LazyDataset
-from trl_env.environment import Action, Delta, Env, GuessEnv, Seed
 from trl_env.model import TransformerModel
 from trl_env.trainer import train
 from trl_env.trainer_config import Mode, TrainConfig

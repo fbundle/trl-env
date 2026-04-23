@@ -3,8 +3,8 @@ import sys
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from experiment.examples.environment import GuessEnv
 from trl_env.batch_rollout import batch_rollout
-from trl_env.environment import Action, Delta, Env, GuessEnv, Seed
 from trl_env.model import TransformerModel
 from trl_env.processor import qwen3_instruct_processor
 
