@@ -172,7 +172,7 @@ the whole conversation should not last longer than {max_conversation_length} tok
             model=model, # type: ignore
             generation_kwargs=dict(
                 max_new_tokens=max_turn_length,
-                temperature=0.6,
+                temperature=1.0,
             ),
         ),
         data=data,
