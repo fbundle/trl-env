@@ -7,6 +7,9 @@ dependencies = [
     "mini-racer>=0.14.1",
     "pydantic>=2.13.3",
     "sympy",
+    "peft>=0.19.1",
+    "python-dotenv>=1.2.2",
+    "tensorboard>=2.20.0",
 ]
 
 [tool.uv.sources]
