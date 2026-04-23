@@ -18,7 +18,7 @@ from trl_env.rollout import batch_rollout
 
 
 class MlxEngine(Engine):
-    def __init__(self, model_path: str, transformer_model: PreTrainedModel) -> None:
+    def __init__(self, model_path: str, transformer_model: PreTrainedModel | None) -> None:
         model, _, _ = mlx_lm.load(  # type: ignore
             path_or_hf_repo=model_path,
             return_config=True,
