@@ -59,45 +59,4 @@ I will say if your guess is higher or lower than my number
         return state_delta
     
 
-# PrimeFactorEnv
-from pydantic import BaseModel
-from py_mini_racer import MiniRacer
-import re
 
-def parse_tool_call(s: str) -> tuple[str, str] | None:
-    match = re.search(r'<tool_call tool="(\w+)">(.*?)</tool_call>', s, re.DOTALL)
-    if match is None:
-        return None
-    return match.group(1), match.group(2).strip()
-
-assert parse_tool_call('<tool_call tool="mini_racer"> code </tool_call>') == ("mini_racer", "code")
-assert parse_tool_call('some text <tool_call tool="js"> x + 1 </tool_call> more') == ("js", "x + 1")
-assert parse_tool_call("no tool call here") is None
-
-class DiscreteLogarithmSeed(BaseModel):
-    """
-    find x such that g^x = h (mod p)
-    """
-    g: int
-    h: int
-    p: int
-
-class DiscreteLogarithmEnv(Env):
-    def __init__(self) -> None:
-        super().__init__()
-        self.reward = 0
-        self.alive = False
-        self.step_count = 0
-        self.mini_racer = MiniRacer()
-        self.seed: DiscreteLogarithmSeed | None = None
-    
-    def reset(self, seed: Seed) -> Delta:
-        self.seed = DiscreteLogarithmSeed.model_validate_json(seed)
-        return f"""
-Find x such that {self.seed.g}^x = {self.seed.h} (mod {self.seed.p}), discrete logarithm problem
-
-
-"""
-    def step(self, action: Action) -> Delta:
-        self.mini_racer.eval(code, timeout=5000, max_memory=50 * 1024 * 1024)  # 5s, 50MB
-        pass
