@@ -117,9 +117,6 @@ If you are confident with your answer, write
 <|box_start|> answer <|box_end|>
 
 Note that, only the first match is consider. Once the answer is given, the environment is terminated.
-The source code of this environment is as follows:
-
-{open(__file__).read()}
 """
     def step(self, action: Action) -> tuple[Env, Delta]:
         assert self.seed is not None

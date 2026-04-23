@@ -9,7 +9,7 @@ from torch.functional import F  # type: ignore
 from transformers import BatchEncoding, PreTrainedModel, PreTrainedTokenizerBase
 import warnings
 
-class Model(Protocol):
+class Engine(Protocol):
     device: torch.device
     def tokenizer_encode(self, input_text: str) -> list[int]: ...
     def tokenizer_decode(self, completion_ids: list[int]) -> str: ...
@@ -25,7 +25,7 @@ def collapse_eos_token_id(completion_ids: Int[Tensor, "n"], eos_token_id: int) -
     index: int = int(indices[0]) + 1
     return completion_ids[:index]
 
-class TransformerModel(Model):
+class TransformerEngine(Engine):
     def __init__(
             self, tokenizer: PreTrainedTokenizerBase, model: PreTrainedModel,
             generation_kwargs: dict[str, Any] | None = None,
@@ -99,7 +99,7 @@ class TransformerModel(Model):
 if __name__ == "__main__":
     from transformers import AutoTokenizer, AutoModelForCausalLM
     path = "Qwen/Qwen3.5-0.8B"
-    m = TransformerModel(
+    m = TransformerEngine(
         tokenizer=AutoTokenizer.from_pretrained(path),
         model=AutoModelForCausalLM.from_pretrained(path).to("mps"), # type: ignore
         generation_kwargs=dict(

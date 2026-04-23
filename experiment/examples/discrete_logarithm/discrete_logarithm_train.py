@@ -16,7 +16,7 @@ from experiment.examples.discrete_logarithm.discrete_logarithm_env import Discre
 from experiment.examples.trl_trainer_util.dataset import LazyDataset
 from experiment.examples.trl_trainer_util.trainer_callback import TimeBasedLogSaveCallback
 from trl_env.batch_rollout import make_reward_func, make_rollout_func
-from trl_env.model import TransformerModel
+from trl_env.engine import TransformerEngine
 from trl_env.processor import deepseekr1_processor, qwen3_processor
 
 
@@ -156,7 +156,7 @@ def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
     if mode == ModePrepare:
         generation_kwargs["min_new_tokens"] = max_conversation_length
 
-    model = TransformerModel(
+    engine = TransformerEngine(
         tokenizer=tokenizer,
         model=model, # type: ignore
         generation_kwargs=generation_kwargs,
@@ -165,7 +165,7 @@ def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
     return (
         model_path,
         processor,
-        model,
+        engine,
         deepspeed,
     )
 
@@ -255,7 +255,7 @@ def main(mode: Mode, uuid: str):
     system_prompt = SYSTEM_PROMPT.format(max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
 
     rollout_func = make_rollout_func(
-        model=model,
+        engine=model,
         processor=processor,
         env_factory=env_factory,
         system_prompt=system_prompt,

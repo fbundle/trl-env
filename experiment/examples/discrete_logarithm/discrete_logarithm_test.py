@@ -4,7 +4,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from trl_env.batch_rollout import batch_rollout
-from trl_env.model import TransformerModel
+from trl_env.engine import TransformerEngine
 from trl_env.processor import qwen3_instruct_processor, qwen3_processor
 
 from experiment.examples.discrete_logarithm.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
@@ -20,7 +20,7 @@ def main():
     max_turn_length = 512
     max_conversation_length = 4096
 
-    model = TransformerModel(
+    engine = TransformerEngine(
         tokenizer=AutoTokenizer.from_pretrained(model_path),
         model=AutoModelForCausalLM.from_pretrained(
             model_path,
@@ -41,7 +41,7 @@ def main():
 
     with torch.no_grad():
         o = batch_rollout(
-            model=model, processor=processor,
+            engine=engine, processor=processor,
             env_factory=lambda : DiscreteLogarithmEnv(), seed_list=[DiscreteLogarithmSeed(
                 g=2, h=3, p=5,
             ).model_dump_json()],

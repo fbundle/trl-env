@@ -5,7 +5,7 @@ import threading
 from typing import Callable, Protocol
 
 from .environment import Env, Seed
-from .model import Model
+from .engine import Engine
 from .processor import Processor
 
 @dataclass
@@ -42,7 +42,7 @@ def init_rollout_state(initial_prompt_ids: list[int]) -> RolloutState:
     )
 
 def batch_rollout(
-    model: Model, processor: Processor, env_factory: Callable[[], Env],
+    engine: Engine, processor: Processor, env_factory: Callable[[], Env],
     system_prompt: str, max_conversation_length: int,
     seed_list: list[Seed], 
     conversation_logger: Callable[[int, str, str], None] | None = None,
@@ -53,7 +53,7 @@ def batch_rollout(
             with _log_lock:
                 conversation_logger(i, role, content)
 
-    system_prompt_ids = model.tokenizer_encode(processor.init_system_input(system_prompt))
+    system_prompt_ids = engine.tokenizer_encode(processor.init_system_input(system_prompt))
     
     env_list: list[Env] = []
     state_list: list[RolloutState] = []
@@ -65,7 +65,7 @@ def batch_rollout(
 
         # assuming tokenizer is additive
         # tok(a ++ b) = tok(a) ++ tok(b)
-        initial_prompt_ids = system_prompt_ids + model.tokenizer_encode(processor.append_user_input(initial_delta))
+        initial_prompt_ids = system_prompt_ids + engine.tokenizer_encode(processor.append_user_input(initial_delta))
 
         state = init_rollout_state(initial_prompt_ids=initial_prompt_ids)
 
@@ -78,7 +78,7 @@ def batch_rollout(
             # MODEL BATCH GENERATE
             # NOTE - consider giving `past_key_values`
             # i.e. give the model the last hidden states so that it won't recalculate everything from the beginning
-            completion_ids_list, logprobs_list = model.model_batch_generate([state.conversation for state in state_list])
+            completion_ids_list, logprobs_list = engine.model_batch_generate([state.conversation for state in state_list])
 
             # PROCESS GENERATE
             def process_generate(i: int, env: Env, state: RolloutState, completion_ids: list[int], logprobs: list[float]) -> tuple[int, Env, RolloutState]:
@@ -91,7 +91,7 @@ def batch_rollout(
                     logprobs=logprobs,
                 )
                 # parse (reason, action)
-                completion_text = model.tokenizer_decode(completion_ids)
+                completion_text = engine.tokenizer_decode(completion_ids)
                 LOG(i, "assistant", completion_text)
                 reason, action = processor.parse_agent_output(completion_text)
                 # interact with environment
@@ -106,7 +106,7 @@ def batch_rollout(
                 # append environment completion
                 # assuming tokenizer is additive
                 # tok(a ++ b) = tok(a) ++ tok(b)
-                delta_ids = model.tokenizer_encode(processor.append_user_input(delta))
+                delta_ids = engine.tokenizer_encode(processor.append_user_input(delta))
                 state = state.append_completion(
                     completion_ids=delta_ids,
                     logprobs=None,
@@ -136,26 +136,26 @@ def batch_rollout(
 # for GRPO
 from typing import Any
 from trl.trainer.grpo_trainer import RolloutFunc, GRPOTrainer, RewardFunc
-from .model import TransformerModel
+from .engine import TransformerEngine
 import torch
 
 
 def make_rollout_func(
-    model: TransformerModel, processor: Processor, env_factory: Callable[[], Env],
+    engine: TransformerEngine, processor: Processor, env_factory: Callable[[], Env],
     system_prompt: str, max_conversation_length: int,
 ) -> RolloutFunc:
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         try:
             # NOTE - only rollout on eval mode
-            model.model.eval()
+            engine.model.eval()
             with torch.no_grad():
                 state_list = batch_rollout(
-                    model=model, processor=processor, env_factory=env_factory,
+                    engine=engine, processor=processor, env_factory=env_factory,
                     system_prompt=system_prompt, max_conversation_length=max_conversation_length,
                     seed_list=prompts,
                 )
         finally:
-            model.model.train()
+            engine.model.train()
         
         return {
             "prompt_ids": [state.conversation[:state.initial_length] for state in state_list],
