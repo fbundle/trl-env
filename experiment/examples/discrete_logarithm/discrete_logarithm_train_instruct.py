@@ -17,7 +17,7 @@ from experiment.examples.discrete_logarithm.discrete_logarithm_env import Discre
 from experiment.examples.trl_trainer_util.dataset import LazyDataset
 from experiment.examples.trl_trainer_util.trainer_callback import TimeBasedLogSaveCallback
 
-from trl_env.processor import qwen3_processor
+from trl_env.processor import qwen3_instruct_processor
 
 
 from trl.trainer.grpo_trainer import GRPOTrainer
@@ -132,7 +132,7 @@ def load_env_and_data(effective_batch_size: int):
     )
 
 def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
-    processor = qwen3_processor
+    processor = qwen3_instruct_processor
     model_path = "Qwen/Qwen3.5-4B"
     debug_model_path = "Qwen/Qwen3.5-0.8B"
 
@@ -201,7 +201,7 @@ def main(mode: Mode, uuid: str):
         deepspeed,
     ) = load_model(mode=mode, max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
 
-    output_dir = f"mnt/output/discrete-logarithm-{os.path.basename(model_path)}-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-{uuid}"
+    output_dir = f"mnt/output/discrete-logarithm-{os.path.basename(model_path)}-instruct-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-{uuid}"
 
     (
         push_to_hub,

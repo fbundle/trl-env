@@ -1,11 +1,10 @@
-import sys
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from trl_env.rollout import batch_rollout
 from trl_env.rollout_transformer import TransformerEngine
-from trl_env.processor import qwen3_instruct_processor, qwen3_processor
+from trl_env.processor import qwen3_instruct_processor
 
 from experiment.examples.discrete_logarithm.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
 
