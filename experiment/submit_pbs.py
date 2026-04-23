@@ -55,12 +55,12 @@ def main(recipe_file: str):
     load_dotenv()
 
     project_name = must_get_env("PBS_PROJECT")
-    pbs_limit = must_get_env("PBS_LIMIT")
+    pbs_limit = must_get_env("PBS_LIMIT", "select=1:ngpus=1")
     walltime = must_get_env("PBS_WALLTIME", "23:50:00")
 
     recipe_module = get_module_path(recipe_file)
     recipe_name = recipe_module.split(".")[-1]
-    uuid = must_get_env("UUID", pbs_limit.replace("=", "").replace(":", ""))
+    uuid = must_get_env("UUID", "debug")
     job_name = f"{recipe_name}_{uuid}"
 
     
