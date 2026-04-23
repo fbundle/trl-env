@@ -43,15 +43,16 @@ I will say if your guess is higher or lower than my number
 
             f = lambda x: 1 / (1 + x) # map [0, inf) -> [1, 0)
             number_points = f(abs(self.target - guess))
+            alive = True
             if guess < self.target:
                 state_delta = f"{guess} is too low"
             elif guess > self.target:
                 state_delta = f"{guess} is too high"
             else:
                 state_delta = f"{guess} is correct"
-                self.alive = False
+                alive = False
                   
-            return 1.0, number_points, True, state_delta
+            return 1.0, number_points, alive, state_delta
 
         format_points, number_points, alive, state_delta = helper(action)
         self.alive = alive
