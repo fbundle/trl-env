@@ -3,7 +3,7 @@ import sys
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from trl_env.batch_rollout import batch_rollout
+from trl_env.rollout import batch_rollout
 from trl_env.engine import TransformerEngine
 from trl_env.processor import qwen3_instruct_processor, qwen3_processor
 
