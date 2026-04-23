@@ -8,6 +8,12 @@
 uv pip install flash-attn --no-build-isolation
 ```
 
+## INSTALL SGLANG ON LINUX
+
+```shell
+uv pip install sglang
+```
+
 ## INSTALL SGLANG ON MACOS
 
 [19137](https://github.com/sgl-project/sglang/issues/19137)
