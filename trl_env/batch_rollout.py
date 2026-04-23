@@ -150,6 +150,7 @@ class RolloutWithLog:
     def rollout_func(self, prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         self.model.model.eval()
         with torch.no_grad():
+            # NOTE - only rollout on eval mode
             state_list = batch_rollout(
                 model=self.model, processor=self.processor, env_factory=self.env_factory,
                 system_prompt=self.system_prompt, max_conversation_length=self.max_conversation_length,
