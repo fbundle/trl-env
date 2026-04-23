@@ -13,10 +13,11 @@ type Delta = str
 type Seed = str
 
 class Env(Protocol):
-    last_step_reward: float
+    reward: float
     alive: bool
     def reset(self, seed: Seed) -> Delta: ...
     def step(self, action: Action) -> Delta: ...
+
 ```
 
 It is similar to tool call if not the same. Note that, `rollout_func` is an experimental feature of [TRL](https://github.com/huggingface/trl), this library is subject to break at anytime
