@@ -218,7 +218,3 @@ __marimo__/
 
 # user-defined
 .vscode
-mnt
-log
-log_*
-*.log
