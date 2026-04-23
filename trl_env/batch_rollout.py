@@ -153,6 +153,7 @@ def make_rollout_func(
 
     return rollout_func
 
-
-def reward_func(prompts: list[str], completions: list[str], reward: list[float], **kwargs) -> list[float]:
-        return reward
+def make_reward_func() -> RewardFunc:
+    def reward_func(prompts: list[str], completions: list[str], reward: list[float], **kwargs) -> list[float]:
+            return reward
+    return reward_func # type: ignore

@@ -1,13 +1,11 @@
 
-from dataclasses import asdict
 import platform
-from typing import Any
 
 import torch
 from transformers import TrainerCallback
 from transformers.trainer_utils import get_last_checkpoint
 
-from .batch_rollout import RolloutWithLog
+from .batch_rollout import make_reward_func, make_rollout_func
 from .trainer_config import TrainConfig
 from .trainer_util import Callback, get_hf_info
 
@@ -98,19 +96,14 @@ def train(config: TrainConfig):
         **train_config_kwargs,
     )
 
-    log = lambda msg: None
-    if config.logger is not None:
-        log = config.logger
-
-    rollout_with_log = RolloutWithLog(
+    rollout_func = make_rollout_func(
         model=config.model,
         processor=config.processor,
         env_factory=config.env_factory,
         system_prompt=config.system_prompt,
         max_conversation_length=config.max_conversation_length,
-        log=log,
     )
-    rollout_func, reward_func = rollout_with_log.rollout_func, rollout_with_log.reward_func
+    reward_func = make_reward_func()
 
     trainer = GRPOTrainer(
         args=training_args,
