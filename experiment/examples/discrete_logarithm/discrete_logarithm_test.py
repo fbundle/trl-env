@@ -15,7 +15,7 @@ def logger(i: int, role: str, content: str):
 
 def main():
     model_path = "Qwen/Qwen3.5-0.8B"
-    processor = qwen3_processor
+    processor = qwen3_instruct_processor
 
     max_turn_length = 512
     max_conversation_length = 4096
