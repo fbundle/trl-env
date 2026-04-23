@@ -15,7 +15,7 @@ from experiment.examples.discrete_logarithm.discrete_logarithm_env import Discre
 from experiment.examples.trl_trainer.dataset import LazyDataset
 from trl_env.model import TransformerModel
 from experiment.examples.trl_trainer.trainer import train
-from experiment.examples.trl_trainer.trainer_config import Mode, TrainConfig
+from experiment.examples.trl_trainer.trainer_config import TrainConfig
 from trl_env.processor import deepseekr1_processor, qwen3_processor
 
 
