@@ -10,7 +10,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from accelerate import PartialState
 
 
-from experiment.examples.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed
+from experiment.examples.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
 from trl_trainer.dataset import LazyDataset
 from trl_env.model import TransformerModel
 from trl_trainer.trainer import train
@@ -117,11 +117,7 @@ def main(train_mode: Mode, uuid: str, debug: bool):
         model_path = debug_model_path
         deepspeed = None
 
-
-    rule =f"""
-every turn, you can output a maximum number of {max_turn_length} tokens
-the whole conversation should not last longer than {max_conversation_length} tokens
-"""
+    rule = SYSTEM_PROMPT.format(max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
 
 
     model, tokenizer = load_model_and_tokenizer(model_path)

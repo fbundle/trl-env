@@ -67,6 +67,11 @@ def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, cap: int, acti
     # stop immediately
     return 0.0, False, "no tool or answer is detected"
 
+SYSTEM_PROMPT = """
+every turn, you can output a maximum number of {max_turn_length} tokens
+the whole conversation should not last longer than {max_conversation_length} tokens
+"""
+
 class DiscreteLogarithmSeed(BaseModel):
     """
     find x such that g^x = h (mod p)
