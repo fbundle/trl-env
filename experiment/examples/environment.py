@@ -73,8 +73,26 @@ assert parse_tool_call('<tool_call tool="mini_racer"> code </tool_call>') == ("m
 assert parse_tool_call('some text <tool_call tool="js"> x + 1 </tool_call> more') == ("js", "x + 1")
 assert parse_tool_call("no tool call here") is None
 
-class PrimeFactorSeed(BaseModel):
-    pass
+class DiscreteLogarithmSeed(BaseModel):
+    """
+    find x such that g^x = h (mod p)
+    """
+    g: int
+    h: int
+    p: int
 
-class PrimeFactorEnv:
-    pass
+class DiscreteLogarithmEnv(Env):
+    def __init__(self) -> None:
+        super().__init__()
+        self.reward = 0
+        self.alive = False
+        self.step_count = 0
+        self.seed: DiscreteLogarithmSeed | None = None
+    
+    def reset(self, seed: Seed) -> Action:
+        self.seed = DiscreteLogarithmSeed.model_validate_json(seed)
+        return f"""
+Find x such that {self.seed.g}^x = {self.seed.h} (mod {self.seed.p}), discrete logarithm problem
+
+
+"""
