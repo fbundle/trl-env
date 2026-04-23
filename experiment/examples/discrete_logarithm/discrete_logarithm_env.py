@@ -51,7 +51,7 @@ def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, cap: int, acti
     code_str = parse_tool_call(action)
     if code_str is not None:
         try:
-            result = mini_racer.eval(code=code_str, timeout=5000, max_memory=50 * 1024 * 1024)  # 5s, 50MB
+            result = mini_racer.eval(code=code_str, timeout=1000, max_memory=50 * 1024 * 1024)  # 1s, 50MB
             result_str = str(result)
         except Exception as e:
             result_str = str(e)
@@ -112,7 +112,7 @@ your code here
 ```
 </tool_call>
 
-I will run that code using PyMiniRacer which is a wrapper over V8 with a timeout of 5 seconds and 50 MB max memory.
+I will run that code using PyMiniRacer which is a wrapper over V8 with a timeout of 1 seconds and 50 MB max memory.
 If you are confident with your answer, write
 <|box_start|> answer <|box_end|>
 
