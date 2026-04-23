@@ -161,7 +161,7 @@ from .model_kvcache import TransformerModelWithKVCache
 import torch
 
 
-def make_rollout_func_with_kvcache(
+def make_rollout_func(
     model: TransformerModelWithKVCache, processor: Processor, env_factory: Callable[[], Env],
     system_prompt: str, max_conversation_length: int,
 ) -> RolloutFunc:
@@ -188,7 +188,7 @@ def make_rollout_func_with_kvcache(
 
     return rollout_func
 
-def make_reward_func_with_kvcache() -> RewardFunc:
+def make_reward_func() -> RewardFunc:
     def reward_func(prompts: list[str], completions: list[str], reward: list[float], **kwargs) -> list[float]:
             return reward
     return reward_func # type: ignore
