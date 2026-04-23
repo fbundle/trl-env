@@ -98,7 +98,9 @@ def train(config: TrainConfig):
         **train_config_kwargs,
     )
 
-
+    log = lambda msg: None
+    if config.logger is not None:
+        log = config.logger
 
     rollout_with_log = RolloutWithLog(
         model=config.model,
@@ -106,7 +108,7 @@ def train(config: TrainConfig):
         env_factory=config.env_factory,
         system_prompt=config.system_prompt,
         max_conversation_length=config.max_conversation_length,
-        log=print,
+        log=log,
     )
     rollout_func, reward_func = rollout_with_log.rollout_func, rollout_with_log.reward_func
 
