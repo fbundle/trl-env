@@ -42,8 +42,6 @@ class TrainConfig:
     save_every_seconds: int = 1 * 3600    # by default, save every 1 hour
     log_every_seconds: int = 0            # by default, log immediately after step_end
 
-    # LOGGER
-    logger: Callable[[str], None] | None = None
 
 
     
