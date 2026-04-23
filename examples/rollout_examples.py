@@ -43,7 +43,7 @@ def main():
     with torch.no_grad():
         o = batch_rollout(
             model=model, processor=processor,
-            env_factory=GuessEnv, seed_list=["36"],
+            env_factory=lambda : GuessEnv(0, 50), seed_list=["36"],
             system_prompt=system_prompt,
             max_conversation_length=max_conversation_length,
             log=sys.stdout.write, # type: ignore

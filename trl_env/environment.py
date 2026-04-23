@@ -67,4 +67,4 @@ I will say if your guess is higher or lower than my number
         self.best_points = max(self.best_points, points)
         self.reward = self.best_points * (0.99)**(self.turn)
 
-        return state_deltas
+        return state_delta
