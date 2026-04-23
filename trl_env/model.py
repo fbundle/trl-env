@@ -49,6 +49,12 @@ class TransformerModel(Model):
             if key in self.generation_kwargs:
                 raise RuntimeError(f"generation_kwargs[{key}] must not be set")
         
+        # some warning
+        import os
+        if os.environ.get("PYTORCH_CUDA_ALLOC_CONF", default=None) != "expandable_segments:True":
+            import warnings
+            warnings.warn("[WARNING] KV cache has not been implemented, set PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation")
+        
     
     def tokenizer_encode(self, input_text: str) -> list[int]:
         return self.tokenizer(input_text).input_ids
