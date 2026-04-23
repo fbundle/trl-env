@@ -17,6 +17,7 @@ class Model(Protocol):
 
 
 def collapse_eos_token_id(completion_ids: Int[Tensor, "n"], eos_token_id: int) ->  Int[Tensor, "n1"]:
+    # assume right padding
     indices: Int[Tensor, "k"] = (completion_ids == eos_token_id).nonzero(as_tuple=True)[0]
     if len(indices) == 0: # no eos_token found
         return completion_ids
@@ -41,7 +42,7 @@ class TransformerModel(Model):
         if generation_kwargs is not None:
             self.generation_kwargs.update(generation_kwargs)
         
-        self.tokenizer.padding_side = "left"
+        self.tokenizer.padding_side = "right"
         self.tokenizer.pad_token_id = self.eos_token_id
 
         # pop hard coded keys
