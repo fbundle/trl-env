@@ -199,7 +199,7 @@ def main(mode: Mode, uuid: str):
         deepspeed,
     ) = load_model(mode=mode, max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
 
-    output_dir = f"mnt/output/discrete-logarithm-{os.path.basename(model_path)}-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-{uuid}"
+    output_dir = f"mnt/output/discrete-logarithm-{os.path.basename(model_path)}-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-{uuid}-kvcache"
 
     (
         push_to_hub,
