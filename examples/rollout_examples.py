@@ -15,8 +15,7 @@ class GuessEnv(Env):
     
     def reset(self, seed: Seed) -> Delta:
         self.target = int(seed)
-        self.best_reward = 0
-        self.last_step_reward = 0
+        self.reward = 0
         self.alive = True
         return """
 I have an integer between 0 and 50 in mind
@@ -57,11 +56,8 @@ I will say if your guess is higher or lower than my number
         format_points, number_points, alive, state_delta = helper(action)
         self.alive = alive
         points = format_points + number_points
-        if points > self.best_reward:
-            self.last_step_reward = points - self.best_reward
-            self.best_reward = points
-        else:
-            self.last_step_reward = 0
+        if points > self.reward: # reward = best
+            self.reward = points
         return state_delta
 
 rule = """
@@ -103,7 +99,7 @@ def main():
             max_conversation_length=max_conversation_length,
             log=sys.stdout.write, # type: ignore
         )
-        print(o[0].total_step_reward)
+        print(o[0].reward)
 
 if __name__ == "__main__":
     main()

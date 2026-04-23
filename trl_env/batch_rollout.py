@@ -16,7 +16,7 @@ class RolloutState:
     conversation: list[int]
     env_mask: list[int]
     logprobs: list[float]
-    total_step_reward: float
+    reward: float | None
 
     def append_completion(
         self,
@@ -39,7 +39,7 @@ def init_rollout_state(initial_prompt_ids: list[int]) -> RolloutState:
         conversation=initial_prompt_ids,
         env_mask=[],
         logprobs=[],
-        total_step_reward=0,
+        reward=None,
     )
 
 
@@ -98,8 +98,9 @@ def batch_rollout(
             delta = env.step(action)
             LOG_LINE(f"user_{i}>\t" + delta)
 
-            # UPDATE REWARD
-            state.total_step_reward += env.last_step_reward
+            # WRITE REWARD
+            LOG_LINE(f"log_{i}>\t" + f"reward: {state.reward} -> {env.reward}")
+            state.reward = env.reward
 
             # IF NOT ALIVE
             if not env.alive:
@@ -143,10 +144,10 @@ def make_rollout_func(
             "completion_ids": [state.conversation[state.initial_length:] for state in state_list],
             "env_mask": [state.env_mask for state in state_list],
             "logprobs": [state.logprobs for state in state_list],
-            "total_step_reward": [state.total_step_reward for state in state_list],
+            "reward": [state.reward for state in state_list],
         }
 
-    def reward_func(prompts: list[str], completions: list[str], total_step_reward: list[float], **kwargs) -> list[float]:
-        return total_step_reward
+    def reward_func(prompts: list[str], completions: list[str], reward: list[float], **kwargs) -> list[float]:
+        return reward
     
     return rollout_func, reward_func # type: ignore
