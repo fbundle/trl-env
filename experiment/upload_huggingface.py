@@ -22,4 +22,4 @@ def upload(output_dir: str):
 
 
 if __name__ == "__main__":
-    upload(sys.argv[1])
+    upload(sys.argv[1].rstrip("/"))
