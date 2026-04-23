@@ -308,7 +308,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "mini-racer", specifier = "==0.14.*" },
-    { name = "mlx-lm" },
+    { name = "mlx-lm", specifier = "==0.31.*" },
     { name = "peft", specifier = "==0.19.*" },
     { name = "pydantic", specifier = "==2.13.*" },
     { name = "python-dotenv", specifier = "==1.2.*" },
@@ -1306,8 +1306,8 @@ dependencies = [
     { name = "typing-extensions", marker = "sys_platform == 'linux'" },
 ]
 wheels = [
-    { url = "https://download-r2.pytorch.org/whl/cu126/torch-2.11.0%2Bcu126-cp312-cp312-manylinux_2_28_aarch64.whl" },
-    { url = "https://download-r2.pytorch.org/whl/cu126/torch-2.11.0%2Bcu126-cp312-cp312-manylinux_2_28_x86_64.whl" },
+    { url = "https://download-r2.pytorch.org/whl/cu126/torch-2.11.0%2Bcu126-cp312-cp312-manylinux_2_28_aarch64.whl", upload-time = "2026-03-23T14:59:37Z" },
+    { url = "https://download-r2.pytorch.org/whl/cu126/torch-2.11.0%2Bcu126-cp312-cp312-manylinux_2_28_x86_64.whl", upload-time = "2026-03-23T14:59:37Z" },
 ]
 
 [[package]]
