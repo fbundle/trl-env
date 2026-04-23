@@ -9,13 +9,8 @@ from trl_env.environment import Env
 from trl_env.processor import Processor
 
 
-type Mode = Literal["prepare", "train"]
-ModePrepare: Mode = "prepare"
-ModeTrain: Mode = "train"
-
 @dataclass
 class TrainConfig:
-    mode: Mode
     output_dir: str
     env_factory: Callable[[], Env]
     system_prompt: str

@@ -22,9 +22,6 @@ def train(config: TrainConfig):
     push_to_hub, hf_model, hf_token = get_hf_info(config.output_dir)
     push_to_hub = push_to_hub and config.push_to_hub
 
-    generation_kwargs = {}
-    if config.generation_kwargs is not None:
-        generation_kwargs.update(config.generation_kwargs)
     train_config_kwargs = {}
     if config.train_config_kwargs is not None:
         train_config_kwargs.update(config.train_config_kwargs)
@@ -36,9 +33,6 @@ def train(config: TrainConfig):
     # prevent TRL from using apply_chat_template
     config.model.tokenizer.apply_chat_template = apply_chat_template
 
-    if config.mode == "prepare":
-        # in prepare mode, always generate in full to monitor GPU memory
-        generation_kwargs["min_new_tokens"] = config.max_conversation_length
 
     # DATASET
     train_dataset = config.data.map(

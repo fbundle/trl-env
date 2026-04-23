@@ -2,6 +2,7 @@
 import os
 import random
 import sys
+from typing import Literal
 
 from peft import LoraConfig, get_peft_model
 import sympy
@@ -51,6 +52,10 @@ def load_model_and_tokenizer(model_path: str):
     )
     model = get_peft_model(model, lora_config)
     return model, tokenizer
+
+type Mode = Literal["prepare", "train"]
+ModePrepare: Mode = "prepare"
+ModeTrain: Mode = "train"
 
 
 def main(train_mode: Mode, uuid: str, debug: bool):
@@ -134,8 +139,17 @@ def main(train_mode: Mode, uuid: str, debug: bool):
 
     model, tokenizer = load_model_and_tokenizer(model_path)
 
+    
+
+    generation_kwargs=dict(
+        max_new_tokens=max_turn_length,
+        temperature=1.0,
+    )
+    # in prepare mode, always generate in full to monitor GPU memory
+    if train_mode == ModePrepare:
+        generation_kwargs["min_new_tokens"] = config.max_conversation_length
+
     config = TrainConfig(
-        mode=train_mode,
         deepspeed=deepspeed,
         output_dir=output_dir,
         processor=processor,
@@ -143,10 +157,7 @@ def main(train_mode: Mode, uuid: str, debug: bool):
         model=TransformerModel(
             tokenizer=tokenizer,
             model=model, # type: ignore
-            generation_kwargs=dict(
-                max_new_tokens=max_turn_length,
-                temperature=1.0,
-            ),
+            generation_kwargs=generation_kwargs,
         ),
         data=data,
         env_factory=env_factory,
