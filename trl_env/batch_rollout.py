@@ -69,7 +69,7 @@ def batch_rollout(
         # while some environment is still not termininate
         while sum([env.alive for env in env_list]) > 0:
             # MODEL BATCH GENERATE
-            # TODO - consider giving `past_key_values`
+            # NOTE - consider giving `past_key_values`
             # i.e. give the model the last hidden states so that it won't recalculate everything from the beginning
             completion_ids_list, logprobs_list = model.model_batch_generate([state.conversation for state in state_list])
 
@@ -109,6 +109,7 @@ def batch_rollout(
 
 
             # BATCH PROCESS GENERATE
+            # NOTE - we wish to use multiprocess here, but it might interfere with torch/accelerate
             for i, (env, state) in enumerate(executor.map(lambda xs: process_generate(*xs), zip(
                 env_list, state_list,
                 completion_ids_list, logprobs_list,

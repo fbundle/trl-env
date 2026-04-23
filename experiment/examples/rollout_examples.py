@@ -46,7 +46,6 @@ def main():
             env_factory=lambda : GuessEnv(0, 50), seed_list=["36"],
             system_prompt=system_prompt,
             max_conversation_length=max_conversation_length,
-            log=sys.stdout.write, # type: ignore
         )
         print(o[0].reward)
 
