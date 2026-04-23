@@ -79,8 +79,6 @@ class TransformerModelWithKVCache(ModelWithKVCache):
         input_ids_list: list[list[int]], 
         past_key_values: Any = None
     ) -> tuple[list[list[int]], list[list[float]], Any]:
-        # KV cache requires right padding
-        self.tokenizer.padding_side = "right"
         e: BatchEncoding = self.tokenizer.pad(
             {"input_ids": input_ids_list},
             padding=True,
