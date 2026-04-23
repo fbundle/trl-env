@@ -2,11 +2,11 @@
 from dataclasses import dataclass
 from typing import Any, Callable, Literal
 
-from .model import TransformerModel
+from trl_env.model import TransformerModel
 
 from .dataset import LazyDataset
-from .environment import Env
-from .processor import Processor
+from trl_env.environment import Env
+from trl_env.processor import Processor
 
 
 type Mode = Literal["prepare", "train"]

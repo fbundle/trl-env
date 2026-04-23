@@ -5,7 +5,7 @@ import torch
 from transformers import TrainerCallback
 from transformers.trainer_utils import get_last_checkpoint
 
-from .batch_rollout import make_reward_func, make_rollout_func
+from trl_env.batch_rollout import make_reward_func, make_rollout_func
 from .trainer_config import TrainConfig
 from .trainer_util import Callback, get_hf_info
 

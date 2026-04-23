@@ -11,10 +11,10 @@ from accelerate import PartialState
 
 
 from experiment.examples.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed
-from trl_env.dataset import LazyDataset
+from trl_trainer.dataset import LazyDataset
 from trl_env.model import TransformerModel
-from trl_env.trainer import train
-from trl_env.trainer_config import Mode, TrainConfig
+from trl_trainer.trainer import train
+from trl_trainer.trainer_config import Mode, TrainConfig
 from trl_env.processor import qwen3_instruct_processor, qwen3_processor
 
 

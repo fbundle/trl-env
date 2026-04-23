@@ -20,3 +20,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "trl_env/__init__.py"
+
+[tool.uv.workspace]
+members = ["experiment"]

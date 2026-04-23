@@ -3,13 +3,11 @@ name = "experiment"
 version = "0.1.0"
 requires-python = "==3.12.*"
 dependencies = [
-    "jaxtyping>=0.3.9",
+    "trl-env",
     "mini-racer>=0.14.1",
-    "peft>=0.19.1",
     "pydantic>=2.13.3",
-    "python-dotenv>=1.2.2",
-    "tensorboard>=2.20.0",
-    "torch>=2.11.0",
-    "transformers>=5.6.0",
-    "trl>=1.2.0",
+    "sympy",
 ]
+
+[tool.uv.sources]
+trl-env = { workspace = true }
