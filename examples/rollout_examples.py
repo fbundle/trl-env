@@ -4,68 +4,10 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from trl_env.batch_rollout import batch_rollout
-from trl_env.environment import Action, Delta, Env, Seed
+from trl_env.environment import Action, Delta, Env, GuessEnv, Seed
 from trl_env.model import TransformerModel
 from trl_env.processor import qwen3_instruct_processor
 
-
-class GuessEnv(Env):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-    
-    def reset(self, seed: Seed) -> Delta:
-        self.target = int(seed)
-        self.turn = 0
-        self.best_points = 0
-        self.reward = 0
-        self.alive = True
-        return """
-I have an integer between 0 and 50 in mind
-every turn, you have to take a guess, output
-GUESS <number>
-I will say if your guess is higher or lower than my number
-"""
-    
-    def step(self, action: Action) -> Delta:
-        def helper(action: str) -> tuple[float, float, bool, str]:
-            words = action.split()
-            if "GUESS" not in words:
-                return 0, 0, False, f"can't find your guess"
-            
-            guess_str = words[words.index("GUESS") + 1]
-
-            try:
-                guess = int(guess_str)
-            except ValueError:
-                guess = None
-
-            if guess is None:
-                return 0.5, 0, False, f"can't find the number in your guess"
-
-            f = lambda x: 1 / (1 + x) # map [0, inf) -> [1, 0)
-            number_points = f(abs(self.target - guess))
-            alive = True
-            if guess < self.target:
-                state_delta = f"{guess} is too low"
-            elif guess > self.target:
-                state_delta = f"{guess} is too high"
-            else:
-                state_delta = f"{guess} is correct"
-                alive = False
-                  
-            return 1.0, number_points, alive, state_delta
-
-        
-
-        format_points, number_points, alive, state_delta = helper(action)
-        points = format_points + number_points
-        
-        self.turn += 1
-        self.alive = alive
-        self.best_points = max(self.best_points, points)
-        self.reward = self.best_points * (0.99)**(self.turn)
-
-        return state_delta
 
 rule = """
 every turn, you can output a maximum number of {max_turn_tokens} tokens
