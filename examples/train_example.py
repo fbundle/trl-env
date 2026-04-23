@@ -9,7 +9,7 @@ from accelerate import PartialState
 
 
 from trl_env.dataset import LazyDataset
-from trl_env.environment import Action, Delta, Env, Seed
+from trl_env.environment import Action, Delta, Env, GuessEnv, Seed
 from trl_env.model import TransformerModel
 from trl_env.trainer import train
 from trl_env.trainer_config import Mode, TrainConfig
@@ -43,19 +43,21 @@ def load_model_and_tokenizer(model_path: str):
     model = get_peft_model(model, lora_config)
     return model, tokenizer
 
+
 def main(train_mode: Mode, uuid: str, debug: bool):
     num_processes = PartialState().num_processes
 
     # model updates every effective_batch_size
     effective_batch_size = 32
 
-    max_turn_length = 256
+    max_turn_length = 512
     # per device memory ~ batch_size x num_generations x max_conversation_length^\alpha
     # alpha = 2 for usual transformer
     # alpha = 1 for flash attention
     per_device_batch_size = 4
     num_generations = 8
     max_conversation_length = 4096
+    push_to_hub = True
 
     if debug:
         effective_batch_size = 4
@@ -75,13 +77,18 @@ def main(train_mode: Mode, uuid: str, debug: bool):
     # train 1000 batches
     train_size = 100 * effective_batch_size
 
+    
+
+
     # train data generation
     # total_num_steps = train_size x num_generations / effective_batch_size
     #       = 8000
     # no_points_per_step = effective_batch_size / num_generations
-    
+    MIN = 0
+    MAX = 10000
+
     def f(i: int) -> str:
-        x = random.randint(0, 10000)
+        x = random.randint(MIN, MAX)
         return str(x)
     
     data = LazyDataset[str](n=train_size, f=f)
@@ -90,7 +97,8 @@ def main(train_mode: Mode, uuid: str, debug: bool):
     debug_model_path = "Qwen/Qwen3.5-0.8B"
     output_dir = f"mnt/output/qwen3.5-4b-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-{uuid}-lora-guess"
     deepspeed = "conf/ds_zero2.json"
-
+    deepspeed = None
+    
     if debug:
         model_path = debug_model_path
         deepspeed = None
@@ -119,7 +127,7 @@ the whole conversation should not last longer than {max_conversation_length} tok
             ),
         ),
         data=data,
-        env_factory=GuessEnv,
+        env_factory=lambda : GuessEnv(MIN, MAX),
         max_turn_length=max_turn_length,
 
         per_device_batch_size=per_device_batch_size,

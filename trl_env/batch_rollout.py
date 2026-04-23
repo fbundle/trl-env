@@ -124,11 +124,13 @@ def batch_rollout(
 # for GRPO
 from typing import Any
 from trl.trainer.grpo_trainer import RolloutFunc, GRPOTrainer, RewardFunc
+from .model import TransformerModel
+import torch
 
 class RolloutWithLog:
     def __init__(
         self,
-        model: Model, processor: Processor, env_factory: Callable[[], Env],
+        model: TransformerModel, processor: Processor, env_factory: Callable[[], Env],
         system_prompt: str, max_conversation_length: int,
         log: Callable[[str], None],
     ) -> None:
@@ -146,12 +148,15 @@ class RolloutWithLog:
         return lambda message: self.log(prefix + " " + message)
     
     def rollout_func(self, prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
-        state_list = batch_rollout(
-            model=self.model, processor=self.processor, env_factory=self.env_factory,
-            system_prompt=self.system_prompt, max_conversation_length=self.max_conversation_length,
-            seed_list=prompts,
-            log=self.make_count_log(),
-        )
+        self.model.model.eval()
+        with torch.no_grad():
+            state_list = batch_rollout(
+                model=self.model, processor=self.processor, env_factory=self.env_factory,
+                system_prompt=self.system_prompt, max_conversation_length=self.max_conversation_length,
+                seed_list=prompts,
+                log=self.make_count_log(),
+            )
+        self.model.model.train()
         return {
             "prompt_ids": [state.conversation[:state.initial_length] for state in state_list],
             "completion_ids": [state.conversation[state.initial_length:] for state in state_list],
