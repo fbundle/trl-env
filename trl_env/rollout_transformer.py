@@ -147,7 +147,7 @@ if __name__ == "__main__":
             max_new_tokens=256,
         ),
     )
-    m.reset_weights(model)
+    m.update_weights(model)
 
     input_text = [
         "hello, this is an example",
@@ -166,5 +166,6 @@ if __name__ == "__main__":
     input_ids_list = [m.tokenizer_encode(text) for text in input_text]
     completion_ids_list, logprobs_list = m.model_batch_generate(input_ids_list)
     output_text = [m.tokenizer_decode(completion_ids) for completion_ids in completion_ids_list]
-    import pdb; pdb.set_trace()
+    
+    print(output_text)
     
