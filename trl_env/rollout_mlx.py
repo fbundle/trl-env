@@ -25,7 +25,6 @@ from mlx_lm.generate import BatchGenerator, GenerationBatch
 
 Response = GenerationBatch.Response
 
-
 def stream_batch_generate(
     model,
     tokenizer,
