@@ -29,8 +29,9 @@ class MlxEngine(Engine):
     def __init__(
         self,
         model_path: str,
-        max_completion_length: int,
-        eos_tokens: list[str],
+        max_completion_length: int = 256,
+        eos_tokens: list[str] | None = None,
+        temperature: float = 0.0,
     ) -> None:
         model, tokenizer, _ = mlx_lm.load(  # type: ignore
             path_or_hf_repo=model_path,
@@ -40,9 +41,11 @@ class MlxEngine(Engine):
         self.tokenizer: TokenizerWrapper = tokenizer
 
         # 
+        self.temperature = temperature
         self.max_completion_length = max_completion_length
-        for eos_token in eos_tokens:
-            self.tokenizer.add_eos_token(eos_token)
+        if eos_tokens is not None:
+            for eos_token in eos_tokens:
+                self.tokenizer.add_eos_token(eos_token)
 
 
     def update_weights(self, model: PreTrainedModel):
@@ -69,6 +72,9 @@ class MlxEngine(Engine):
                 tokenizer=self.tokenizer,
                 prompt=input_ids,
                 max_tokens=self.max_completion_length,
+                sampler=mlx_lm.sample_utils.make_sampler(
+                    temp=self.temperature,
+                ),
             )
             for r in response_generator:
                 completion_ids.append(r.token)
