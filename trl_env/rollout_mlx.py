@@ -29,7 +29,8 @@ class MlxEngine(Engine):
     def __init__(
         self,
         model_path: str,
-        generation_kwargs: dict[str, Any] | None = None,
+        max_completion_length: int,
+        eos_tokens: list[str],
     ) -> None:
         model, tokenizer, _ = mlx_lm.load(  # type: ignore
             path_or_hf_repo=model_path,
@@ -37,7 +38,13 @@ class MlxEngine(Engine):
         )
         self.model: nn.Module = model
         self.tokenizer: TokenizerWrapper = tokenizer
-    
+
+        # 
+        self.max_completion_length = max_completion_length
+        for eos_token in eos_tokens:
+            self.tokenizer.add_eos_token(eos_token)
+
+
     def update_weights(self, model: PreTrainedModel):
         print("[WARNING] update_weights is not current implemented")
         return
@@ -51,15 +58,25 @@ class MlxEngine(Engine):
         return output_text
     
     def model_batch_generate(self, input_ids_list: list[list[int]]) -> tuple[list[list[int]], list[list[float]]]:
-        completion_ids_list = []
+        completion_ids_list: list[list[int]] = []
+        log_probs_list: list[list[float]] = []
 
         for input_ids in input_ids_list:
+            completion_ids: list[int] = []
+            log_probs: list[float] = []
             response_generator = mlx_lm.stream_generate(
                 model=self.model,
                 tokenizer=self.tokenizer,
                 prompt=input_ids,
-                max_tokens=256,
+                max_tokens=self.max_completion_length,
             )
+            for r in response_generator:
+                completion_ids.append(r.token)
+                log_probs.append(r.logprobs[r.token].item())
+            
+            completion_ids_list.append(completion_ids)
+            log_probs_list.append(log_probs)
+
 
 
 
