@@ -27,6 +27,34 @@ from mlx_lm.generate import BatchGenerator, GenerationBatch
 
 Response = GenerationBatch.Response
 
+
+def _strip_known_state_dict_prefixes(state_dict: dict[str, mx.array]) -> dict[str, mx.array]:
+    """
+    GRPO training commonly wraps the HF model in PEFT (LoRA), which prefixes keys like:
+      - base_model.model.*
+      - base_model.model.model.*
+    MLX model sanitizers expect the *base* HF key layout, so we strip known wrappers.
+    """
+
+    def strip_one(k: str) -> str:
+        # PEFT wrappers
+        for p in ("base_model.model.", "base_model."):
+            if k.startswith(p):
+                return k[len(p) :]
+        return k
+
+    # Repeatedly strip because we sometimes see nested "base_model.model.model."
+    out: dict[str, mx.array] = {}
+    for k, v in state_dict.items():
+        kk = k
+        while True:
+            kk2 = strip_one(kk)
+            if kk2 == kk:
+                break
+            kk = kk2
+        out[kk] = v
+    return out
+
 def stream_batch_generate(
     model,
     tokenizer,
@@ -80,15 +108,22 @@ class MlxEngine:
                 self.tokenizer.add_eos_token(eos_token)
     
     def update_weights(self, state_dict: dict[str, mx.array]):
+        state_dict = _strip_known_state_dict_prefixes(state_dict)
+
         if hasattr(self.model, "sanitize"):
             state_dict = self.model.sanitize(state_dict)
-
 
         curr_weights = tree_flatten(self.model.parameters(), destination={})
         new_weights: dict[str, mx.array] = {}
 
         for key in curr_weights.keys():
-            val = state_dict[key]
+            try:
+                val = state_dict[key]
+            except:
+                print(f"[INFO] name translation issue, fix it yourself in _strip_known_state_dict_prefixes")
+                import pdb; pdb.set_trace()
+                os.exit(1)
+            
             new_weights[key] = val
 
         self.model.load_weights(file_or_weights=new_weights.items(), strict=True)

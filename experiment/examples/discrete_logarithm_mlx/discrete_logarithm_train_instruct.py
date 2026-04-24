@@ -40,6 +40,10 @@ def load_model_and_tokenizer(model_path: str):
         device_map="auto",
         attn_implementation=attn_implementation,
     )
+
+    return model, tokenizer
+
+    
     lora_config = LoraConfig(
         r=16,
         lora_alpha=32,
