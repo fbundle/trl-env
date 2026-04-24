@@ -168,8 +168,7 @@ def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
     for eos_token in EOS_TOKENS:
         eos_token_ids = engine.tokenizer_encode(eos_token)
         assert len(eos_token_ids) == 1
-        eos_token_id = eos_token_ids[0]
-        engine.generation_kwargs["eos_token_id"].append(eos_token_id)
+        engine.generation_kwargs["eos_token_id"].append(eos_token_ids[0])
 
     return (
         model_path,

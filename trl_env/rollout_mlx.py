@@ -35,17 +35,12 @@ class MlxEngine(Engine):
             path_or_hf_repo=model_path,
             return_config=True,
         )
-        tokenizer = AutoTokenizer.from_pretrained(model_path)
         self.model: nn.Module = model
-        self.tokenizer: PreTrainedTokenizerBase = tokenizer
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(model_path)
 
         self.generation_kwargs: dict[str, Any] = {
             "max_new_tokens": 256,
             "eos_token_id": self.tokenizer.eos_token_id,
-            "temp": 0.0,
-            "top_p": 1.0,
-            "min_p": 0.0,
-            "top_k": 0,
         }
         if generation_kwargs is not None:
             self.generation_kwargs.update(generation_kwargs)
