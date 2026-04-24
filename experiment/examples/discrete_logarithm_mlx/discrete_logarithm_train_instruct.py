@@ -156,7 +156,7 @@ def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
     engine = MlxRolloutEngine(
         model_path=model_path,
         max_completion_length=max_turn_length,
-        temperature=0.6,
+        temperature=1.0,
         extra_eos_token_list=EXTRA_EOS_TOKEN_LIST,
     )
 
