@@ -18,17 +18,16 @@ from trl_env.rollout import batch_rollout
 
 
 class MlxEngine(Engine):
-    def __init__(self, model_path: str, transformer_model: PreTrainedModel | None) -> None:
+    def __init__(self, model_path: str) -> None:
         model, _, _ = mlx_lm.load(  # type: ignore
             path_or_hf_repo=model_path,
             return_config=True,
         )
         tokenizer = AutoTokenizer.from_pretrained(model_path)
-        self.transformer_model = transformer_model
         self.model: nn.Module = model
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
     
-    def update_weights(self):
+    def update_weights(self, model: PreTrainedModel):
         # TODO - get self.transformer_model weights
         file_or_weights: Union[str, list[tuple[str, mx.array]]] = None # type: ignore
         self.model.load_weights(file_or_weights)
@@ -52,7 +51,7 @@ def make_rollout_func(
 ) -> RolloutFunc:
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         try:
-            engine.update_weights()
+            engine.update_weights(trainer.model)
             state_list = batch_rollout(
                 engine=engine, processor=processor, env_factory=env_factory,
                 system_prompt=system_prompt, max_conversation_length=max_conversation_length,
