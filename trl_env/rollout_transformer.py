@@ -20,14 +20,15 @@ from trl_env.rollout import batch_rollout
 
 
 
-def collapse_eos_token_id(completion_ids: Int[Tensor, "n"], eos_token_id: int) ->  Int[Tensor, "n1"]:
-    indices: Int[Tensor, "k"] = (completion_ids == eos_token_id).nonzero(as_tuple=True)[0]
-    if len(indices) == 0: # no eos_token found
-        return completion_ids
+def collapse_eos_token_id(completion_ids: list[int], eos_token_id: int) ->  list[int]:
+    try:
+        n = completion_ids.index(eos_token_id)
+    except ValueError:
+        n = len(completion_ids) - 1
+    
     # eos_token found
     # [tok, tok, eos, eos, eos] -> [tok, tok, eos]
-    index: int = int(indices[0]) + 1
-    return completion_ids[:index]
+    return completion_ids[:n+1]
 
 class TransformerEngine(Engine):
     def __init__(
