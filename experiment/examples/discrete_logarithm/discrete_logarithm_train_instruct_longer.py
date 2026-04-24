@@ -118,9 +118,9 @@ def load_batch_information(mode: Mode):
     # per device memory ~ batch_size x num_generations x max_conversation_length^\alpha
     # alpha = 2 for usual transformer
     # alpha = 1 for flash attention
-    effective_batch_size = 24
+    effective_batch_size = 16
     per_device_batch_size = 1
-    num_generations = 12
+    num_generations = 16
     max_conversation_length = 8192
     max_turn_length = 1024
 
