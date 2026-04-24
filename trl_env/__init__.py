@@ -1,4 +1,4 @@
-__version__ = "0.1.14"
+__version__ = "0.1.15"
 
 from .environment import Action, Delta, Seed, Env
 from .processor import Language, Processor
