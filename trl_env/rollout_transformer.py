@@ -92,7 +92,7 @@ class TransformerEngine(Engine):
         logprobs_list: list[list[float]] = []
 
         for i in range(b):
-            completion_ids: list[int] = collapse_eos_token_id(completion_ids_batch[i, :], self.tokenizer.eos_token_id).tolist()
+            completion_ids: list[int] = collapse_eos_token_id(completion_ids_batch[i, :].tolist(), self.tokenizer.eos_token_id)
             # x[[a, b, c, d], [A, B, C, D]] = [x[a, A], x[b, B], x[c, C], x[d, D]]
             logprobs: list[float] = batch_logprobs[i, range(len(completion_ids)), completion_ids].tolist()
             
