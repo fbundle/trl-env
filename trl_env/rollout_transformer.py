@@ -32,11 +32,11 @@ def collapse_eos_token_id(completion_ids: list[int], eos_token_id: int) ->  list
 
 class TransformerEngine(Engine):
     def __init__(
-            self, tokenizer: PreTrainedTokenizerBase,
+            self, tokenizer: PreTrainedTokenizerBase, model: PreTrainedModel,
             generation_kwargs: dict[str, Any] | None = None,
         ):
         self.tokenizer = tokenizer
-        self.model: PreTrainedModel | None = None
+        self.model = model
         self.generation_kwargs = {
             "max_new_tokens": 256,
             "eos_token_id": [self.tokenizer.eos_token_id],
@@ -56,10 +56,7 @@ class TransformerEngine(Engine):
         import os
         if os.environ.get("PYTORCH_CUDA_ALLOC_CONF", default=None) != "expandable_segments:True":
             warnings.warn("[WARNING] KV cache has not been implemented, set PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation")
-    
-    def update_weights(self, model: PreTrainedModel):
-        self.model = model
-    
+
     def tokenizer_encode(self, input_text: str) -> list[int]:
         return self.tokenizer(input_text).input_ids
 
@@ -110,7 +107,7 @@ def make_rollout_func(
 ) -> RolloutFunc:
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         try:
-            engine.update_weights(trainer.model)
+            engine.model = trainer.model
             # NOTE - only rollout on eval mode
             engine.model.eval()
             with torch.no_grad():
@@ -141,14 +138,14 @@ def make_reward_func() -> RewardFunc:
 if __name__ == "__main__":
     from transformers import AutoTokenizer, AutoModelForCausalLM
     path = "Qwen/Qwen3.5-0.8B"
-    model = AutoModelForCausalLM.from_pretrained(path).to("mps")
+    
     m = TransformerEngine(
         tokenizer=AutoTokenizer.from_pretrained(path),
+        model=AutoModelForCausalLM.from_pretrained(path).to("mps"),
         generation_kwargs=dict(
             max_new_tokens=256,
         ),
     )
-    m.update_weights(model)
 
     input_text = [
         "hello, this is an example",

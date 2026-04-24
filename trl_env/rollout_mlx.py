@@ -4,6 +4,9 @@ from typing import Any, Callable
 
 import mlx.nn as nn
 import mlx_lm
+import mlx_lm.sample_utils
+
+from mlx_lm.tokenizer_utils import TokenizerWrapper
 from transformers import AutoTokenizer, PreTrainedModel, PreTrainedTokenizerBase
 
 from trl_env.engine import Engine
@@ -28,26 +31,40 @@ class MlxEngine(Engine):
         model_path: str,
         generation_kwargs: dict[str, Any] | None = None,
     ) -> None:
-        model, _, _ = mlx_lm.load(  # type: ignore
+        model, tokenizer, _ = mlx_lm.load(  # type: ignore
             path_or_hf_repo=model_path,
             return_config=True,
         )
         self.model: nn.Module = model
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(model_path)
+        self.tokenizer: TokenizerWrapper = tokenizer
+        self.transformer_tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(model_path)
     
     def update_weights(self, model: PreTrainedModel):
         return
         raise NotImplementedError
 
     def tokenizer_encode(self, input_text: str) -> list[int]:
-        return self.tokenizer(input_text).input_ids
+        return self.transformer_tokenizer(input_text).input_ids
 
     def tokenizer_decode(self, completion_ids: list[int]) -> str:
-        output_text = self.tokenizer.decode(completion_ids)
+        output_text = self.transformer_tokenizer.decode(completion_ids)
         assert isinstance(output_text, str)
         return output_text
     
     def model_batch_generate(self, input_ids_list: list[list[int]]) -> tuple[list[list[int]], list[list[float]]]:
+        completion_ids_list = []
+
+        for input_ids in input_ids_list:
+            response_generator = mlx_lm.stream_generate(
+                model=self.model,
+                tokenizer=self.tokenizer,
+                prompt=input_ids,
+                max_tokens=256,
+            )
+
+
+
+
         pass
 
 
