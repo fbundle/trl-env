@@ -37,17 +37,16 @@ class MlxEngine(Engine):
         )
         self.model: nn.Module = model
         self.tokenizer: TokenizerWrapper = tokenizer
-        self.transformer_tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(model_path)
     
     def update_weights(self, model: PreTrainedModel):
+        print("[WARNING] update_weights is not current implemented")
         return
-        raise NotImplementedError
 
     def tokenizer_encode(self, input_text: str) -> list[int]:
-        return self.transformer_tokenizer(input_text).input_ids
+        return self.tokenizer._tokenizer(input_text).input_ids
 
     def tokenizer_decode(self, completion_ids: list[int]) -> str:
-        output_text = self.transformer_tokenizer.decode(completion_ids)
+        output_text = self.tokenizer._tokenizer.decode(completion_ids)
         assert isinstance(output_text, str)
         return output_text
     
