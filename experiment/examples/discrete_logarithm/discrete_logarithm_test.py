@@ -6,7 +6,7 @@ from trl_env.rollout import batch_rollout
 from trl_env.rollout_transformer import TransformerEngine
 from trl_env.processor import qwen3_instruct_processor
 
-from experiment.examples.discrete_logarithm.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
+from experiment.examples.discrete_logarithm.discrete_logarithm_env import EOS_TOKENS, DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
 
 
 def logger(i: int, role: str, content: str):
@@ -21,16 +21,21 @@ def main():
 
     engine = TransformerEngine(
         tokenizer=AutoTokenizer.from_pretrained(model_path),
-        model=AutoModelForCausalLM.from_pretrained(
-            model_path,
-            dtype=torch.bfloat16,
-            device_map="auto",
-        ).eval(),
         generation_kwargs=dict(
             temperature=0.6,
             max_new_tokens=max_turn_length,
         )
     )
+    engine.update_weights(AutoModelForCausalLM.from_pretrained(
+        model_path,
+        dtype=torch.bfloat16,
+        device_map="auto",
+    ).eval())
+
+    for eos_token in EOS_TOKENS:
+        eos_token_ids = engine.tokenizer_encode(eos_token)
+        assert len(eos_token_ids) == 1
+        engine.generation_kwargs["eos_token_id"].append(eos_token_ids[0])
 
 
     system_prompt = SYSTEM_PROMPT.format(
