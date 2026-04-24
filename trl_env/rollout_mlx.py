@@ -63,7 +63,7 @@ class MlxEngine:
         self, model_path: str,
         max_completion_length: int = 256,
         temperature: float = 0.0,
-        eos_token_list: list[str] | None = None,
+        extra_eos_token_list: list[str] | None = None,
     ):
         # the easiest way to load model into MLX is just giving it a HF model directory
         model, tokenizer, _ = mlx_lm.load(  # type: ignore
@@ -75,8 +75,8 @@ class MlxEngine:
 
         self.temperature = temperature
         self.max_completion_length = max_completion_length
-        if eos_token_list is not None:
-            for eos_token in eos_token_list:
+        if extra_eos_token_list is not None:
+            for eos_token in extra_eos_token_list:
                 self.tokenizer.add_eos_token(eos_token)
     
     def update_weights(self, state_dict: dict[str, mx.array]):
@@ -111,7 +111,6 @@ class MlxEngine:
                 temp=self.temperature,
             ),
             prompt_caches=prompt_cache_list,
-            return_prompt_caches=return_prompt_caches,
         )
 
         for i, r in response:
@@ -137,7 +136,7 @@ class MlxRolloutEngine(Engine):
         self.engine = MlxEngine(model_path, **kwargs)
         self.prompt_cache = None
 
-    def update_weights(self, state_dict: dict[str, mx.array]):
+    def update_weights_and_reset_prompt_cache(self, state_dict: dict[str, mx.array]):
         self.engine.update_weights(state_dict)
         self.prompt_cache = None # reset prompt_cache
 
@@ -165,7 +164,7 @@ def make_rollout_func(
 ) -> RolloutFunc:
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         try:
-            engine.update_weights(trainer.model)
+            engine.update_weights_and_reset_prompt_cache(trainer.model)
             state_list = batch_rollout(
                 engine=engine, processor=processor, env_factory=env_factory,
                 system_prompt=system_prompt, max_conversation_length=max_conversation_length,
@@ -196,23 +195,23 @@ if __name__ == "__main__":
 
 
     path = "Qwen/Qwen3.5-0.8B"
-    m = MlxEngine(
+    m = MlxRolloutEngine(
         model_path=path,
         max_completion_length=256,
         temperature=0.6,
-        eos_tokens=None,
+        extra_eos_token_list=None,
     )
 
     model = AutoModelForCausalLM.from_pretrained(path)
 
-    m.update_weights({k: mx.array(v) for k, v in model.state_dict().items()})
+    m.update_weights_and_reset_prompt_cache({k: mx.array(v) for k, v in model.state_dict().items()})
 
     input_text = [
         "hello, this is an example",
         "water is blue"
     ]
 
-    input_text: list[str] = [m.tokenizer.apply_chat_template( # type: ignore
+    input_text: list[str] = [m.engine.tokenizer.apply_chat_template( # type: ignore
         [{"role": "user", "content": text}],
         tokenize=False,
         add_generation_prompt=True,
@@ -233,7 +232,7 @@ if __name__ == "__main__":
         "umm, what was I saying again",
     ]
 
-    input_text: list[str] = [m.tokenizer.apply_chat_template( # type: ignore
+    input_text: list[str] = [m.engine.tokenizer.apply_chat_template( # type: ignore
         [{"role": "user", "content": text}],
         tokenize=False,
         add_generation_prompt=True,
