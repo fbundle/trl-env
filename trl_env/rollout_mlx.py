@@ -30,8 +30,8 @@ class MlxEngine(Engine):
         self,
         model_path: str,
         max_completion_length: int = 256,
-        eos_tokens: list[str] | None = None,
         temperature: float = 0.0,
+        eos_tokens: list[str] | None = None,
     ) -> None:
         model, tokenizer, _ = mlx_lm.load(  # type: ignore
             path_or_hf_repo=model_path,
@@ -62,7 +62,7 @@ class MlxEngine(Engine):
     
     def model_batch_generate(self, input_ids_list: list[list[int]]) -> tuple[list[list[int]], list[list[float]]]:
         completion_ids_list: list[list[int]] = []
-        log_probs_list: list[list[float]] = []
+        logprobs_list: list[list[float]] = []
 
         for input_ids in input_ids_list:
             completion_ids: list[int] = []
@@ -81,13 +81,10 @@ class MlxEngine(Engine):
                 log_probs.append(r.logprobs[r.token].item())
             
             completion_ids_list.append(completion_ids)
-            log_probs_list.append(log_probs)
+            logprobs_list.append(log_probs)
 
 
-
-
-
-        pass
+        return completion_ids_list, logprobs_list
 
 
 def make_rollout_func(
@@ -119,3 +116,35 @@ def make_reward_func() -> RewardFunc:
     def reward_func(prompts: list[str], completions: list[str], reward: list[float], **kwargs) -> list[float]:
             return reward
     return reward_func # type: ignore
+
+
+
+if __name__ == "__main__":
+    path = "Qwen/Qwen3.5-0.8B"
+    m = MlxEngine(
+        model_path=path,
+        max_completion_length=256,
+        temperature=0.6,
+        eos_tokens=None,
+    )
+
+    input_text = [
+        "hello, this is an example",
+        "water is blue"
+    ]
+
+    input_text: list[str] = [m.tokenizer.apply_chat_template( # type: ignore
+        [{"role": "user", "content": text}],
+        tokenize=False,
+        add_generation_prompt=True,
+        enable_thinking=True,
+    ) for text in input_text]
+
+    print(input_text)
+
+    input_ids_list = [m.tokenizer_encode(text) for text in input_text]
+    completion_ids_list, logprobs_list = m.model_batch_generate(input_ids_list)
+    output_text = [m.tokenizer_decode(completion_ids) for completion_ids in completion_ids_list]
+    
+    print(output_text)
+    
