@@ -26,7 +26,7 @@ from mlx_lm.generate import BatchGenerator, GenerationBatch
 Response = GenerationBatch.Response
 
 
-def batch_generate(
+def stream_batch_generate(
     model,
     tokenizer,
     prompts: List[List[int]],
@@ -36,25 +36,6 @@ def batch_generate(
     return_prompt_caches: bool = False,
     **kwargs,
 ) -> Generator[Response, None, None]:
-    """
-    Generate responses for the given batch of prompts.
-
-    Args:
-       model (nn.Module): The language model.
-       tokenizer (PreTrainedTokenizer): The tokenizer.
-       prompts (List[List[int]]): The input prompts.
-       prompt_caches (List[List[Any]], optional): Pre-computed prompt-caches
-          for each input prompt. Note, unlike ``generate_step``, the caches
-          won't be updated in-place.
-       verbose (bool): If ``True``, print tokens and timing information.
-          Default: ``False``.
-       max_tokens (Union[int, List[int]): Maximum number of output tokens. This
-          can be per prompt if a list is provided.
-       return_prompt_caches (bool): Return the prompt caches in the batch
-          responses. Default: ``False``.
-       kwargs: The remaining options get passed to :obj:`BatchGenerator`.
-          See :obj:`BatchGenerator` for more details.
-    """
 
     gen = BatchGenerator(
         model,
@@ -119,7 +100,7 @@ class MlxEngine(Engine):
         completion_ids_list: list[list[int]] = [[] for _ in input_ids_list]
         logprobs_list: list[list[float]] = [[] for _ in input_ids_list]
 
-        response = batch_generate(
+        response = stream_batch_generate(
             model=self.model,
             tokenizer=self.tokenizer,
             prompts=input_ids_list,
