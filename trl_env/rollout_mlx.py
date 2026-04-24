@@ -83,6 +83,7 @@ class MlxEngine:
         if hasattr(self.model, "sanitize"):
             state_dict = self.model.sanitize(state_dict)
 
+
         curr_weights = tree_flatten(self.model.parameters(), destination={})
         new_weights: dict[str, mx.array] = {}
 
