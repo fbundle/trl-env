@@ -24,6 +24,8 @@ assert parse_tool_call("no tool call") is None
 assert parse_answer('<|box_start|> 42 <|box_end|>') == "42"
 assert parse_answer("no answer") is None
 
+EOS_TOKENS = ["</tool_call>", "<|box_end|>"]
+
 def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, cap: int, action: str) -> tuple[float, bool, str]:
     answer_str = parse_answer(action)
     if answer_str is not None:
@@ -92,9 +94,6 @@ class DiscreteLogarithmEnv(Env):
 
         self.mini_racer: MiniRacer = MiniRacer()
         self.seed: DiscreteLogarithmSeed | None = None
-    
-    def eos_tokens(self) -> list[str]:
-        return ["</tool_call>", "<|box_end|>"]
     
     def reset(self, seed: Seed) -> tuple[Env, Delta]:
         self.reward = 0
