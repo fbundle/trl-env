@@ -164,7 +164,10 @@ def make_rollout_func(
 ) -> RolloutFunc:
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         try:
-            engine.update_weights_and_reset_prompt_cache(trainer.model)
+            model = trainer.model.cpu()
+            state_dict = {k: mx.array(v) for k, v in model.state_dict().items()}
+            engine.update_weights_and_reset_prompt_cache(state_dict)
+            
             state_list = batch_rollout(
                 engine=engine, processor=processor, env_factory=env_factory,
                 system_prompt=system_prompt, max_conversation_length=max_conversation_length,
