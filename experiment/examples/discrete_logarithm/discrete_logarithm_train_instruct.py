@@ -66,6 +66,51 @@ ModeTrain: Mode = "train"
 ModeDebug: Mode = "debug"
 all_modes = [ModeTrain, ModePrepare, ModeDebug]
 
+def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
+    processor = qwen3_instruct_processor
+    model_path = "Qwen/Qwen3.5-0.8B"
+    debug_model_path = "Qwen/Qwen3.5-0.8B"
+
+    deepspeed = None # TODO - change to "conf/ds_zero2.json" for multi GPUs
+    
+    if mode == ModeDebug:
+        model_path = debug_model_path
+        deepspeed = None
+
+    model, tokenizer = load_model_and_tokenizer(model_path)
+    def apply_chat_template(*args, **kwargs):
+        raise RuntimeError("GRPO must not use apply_chat_template")
+
+    # prevent TRL from using apply_chat_template
+    tokenizer.apply_chat_template = apply_chat_template
+
+
+    generation_kwargs=dict(
+        max_new_tokens=max_turn_length,
+        temperature=1.0,
+    )
+    # in prepare mode, always generate in full to monitor GPU memory
+    if mode == ModePrepare:
+        generation_kwargs["min_new_tokens"] = max_conversation_length
+
+    engine = TransformerEngine(
+        tokenizer=tokenizer,
+        model=model, # type: ignore
+        generation_kwargs=generation_kwargs,
+    )
+
+    for eos_token in EXTRA_EOS_TOKEN_LIST:
+        eos_token_ids = engine.tokenizer_encode(eos_token)
+        assert len(eos_token_ids) == 1
+        engine.generation_kwargs["eos_token_id"].append(eos_token_ids[0])
+
+    return (
+        model_path,
+        processor,
+        engine,
+        deepspeed,
+    )
+
 def load_batch_information(mode: Mode):
     num_processes = PartialState().num_processes
 
@@ -74,10 +119,10 @@ def load_batch_information(mode: Mode):
     # alpha = 2 for usual transformer
     # alpha = 1 for flash attention
     effective_batch_size = 16
-    per_device_batch_size = 1
+    per_device_batch_size = 2
     num_generations = 8
     max_conversation_length = 4096
-    max_turn_length = 4096
+    max_turn_length = 2048
 
     if mode == ModeDebug:
         effective_batch_size = 4
@@ -132,50 +177,6 @@ def load_env_and_data(effective_batch_size: int):
         data,
     )
 
-def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
-    processor = qwen3_instruct_processor
-    model_path = "Qwen/Qwen3.5-4B"
-    debug_model_path = "Qwen/Qwen3.5-0.8B"
-
-    deepspeed = None # TODO - change to "conf/ds_zero2.json" for multi GPUs
-    
-    if mode == ModeDebug:
-        model_path = debug_model_path
-        deepspeed = None
-
-    model, tokenizer = load_model_and_tokenizer(model_path)
-    def apply_chat_template(*args, **kwargs):
-        raise RuntimeError("GRPO must not use apply_chat_template")
-
-    # prevent TRL from using apply_chat_template
-    tokenizer.apply_chat_template = apply_chat_template
-
-
-    generation_kwargs=dict(
-        max_new_tokens=max_turn_length,
-        temperature=1.0,
-    )
-    # in prepare mode, always generate in full to monitor GPU memory
-    if mode == ModePrepare:
-        generation_kwargs["min_new_tokens"] = max_conversation_length
-
-    engine = TransformerEngine(
-        tokenizer=tokenizer,
-        model=model, # type: ignore
-        generation_kwargs=generation_kwargs,
-    )
-
-    for eos_token in EXTRA_EOS_TOKEN_LIST:
-        eos_token_ids = engine.tokenizer_encode(eos_token)
-        assert len(eos_token_ids) == 1
-        engine.generation_kwargs["eos_token_id"].append(eos_token_ids[0])
-
-    return (
-        model_path,
-        processor,
-        engine,
-        deepspeed,
-    )
 
 def get_hf_info(output_dir: str) -> tuple[bool, str, str]:
     hf_user = os.environ.get("HF_USER", default=None)
