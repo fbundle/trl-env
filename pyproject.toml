@@ -9,6 +9,7 @@ dependencies = [
     "transformers==5.5.*",
     "trl==1.2.*",
     "mlx-lm==0.31.*",
+    "mlx>=0.31.2",
 ]
 
 [build-system]
