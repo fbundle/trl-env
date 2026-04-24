@@ -86,6 +86,9 @@ class MlxEngine(Engine):
 
 
     def update_weights(self, state_dict: dict[str, mx.array]):
+        if hasattr(self.model, "sanitize"):
+            state_dict = self.model.sanitize(state_dict)
+
         curr_weights = tree_flatten(self.model.parameters(), destination={})
         new_weights: dict[str, mx.array] = {}
 
@@ -173,9 +176,10 @@ if __name__ == "__main__":
 
     model = AutoModelForCausalLM.from_pretrained(path)
 
+    # specific for qwen3.5
     state_dict = {}
     for key, val in model.state_dict().items():
-        state_dict["language_model." + key] = mx.array(val)
+        state_dict[key] = mx.array(val)
 
     m.update_weights(state_dict)
 
@@ -199,3 +203,4 @@ if __name__ == "__main__":
     
     print(output_text)
     
+    mlx_lm.convert
