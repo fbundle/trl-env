@@ -32,11 +32,9 @@ def main():
         device_map="auto",
     )
     model = model.cpu()
-
     state_dict = {k: mx.array(v) for k, v in model.state_dict().items()}
 
     engine.update_weights_and_reset_prompt_cache(state_dict)
-
 
     system_prompt = SYSTEM_PROMPT.format(
         max_turn_length=max_turn_length,
