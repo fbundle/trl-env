@@ -93,6 +93,9 @@ class DiscreteLogarithmEnv(Env):
         self.mini_racer: MiniRacer = MiniRacer()
         self.seed: DiscreteLogarithmSeed | None = None
     
+    def eos_tokens(self) -> list[str]:
+        return ["</tool_call>", "<|box_end|>"]
+    
     def reset(self, seed: Seed) -> tuple[Env, Delta]:
         self.reward = 0
         self.alive = True
