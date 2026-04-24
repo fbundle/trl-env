@@ -116,17 +116,17 @@ class MlxEngine:
         curr_weights = tree_flatten(self.model.parameters(), destination={})
         new_weights: dict[str, mx.array] = {}
 
+        missing_keys = set()
         for key in curr_weights.keys():
-            try:
+            if key in state_dict:
                 val = state_dict[key]
-            except:
-                print(f"[INFO] name translation issue, fix it yourself in _strip_known_state_dict_prefixes")
-                import pdb; pdb.set_trace()
-                os.exit(1)
-            
-            new_weights[key] = val
+                new_weights[key] = val
+            else:
+                missing_keys.add(key)
+        if len(missing_keys) > 0:
+            print("[ERROR] missing keys", len(missing_keys), len(curr_weights))
 
-        self.model.load_weights(file_or_weights=new_weights.items(), strict=True)
+        self.model.load_weights(file_or_weights=new_weights.items(), strict=False)
     
     def model_batch_generate(
         self, input_ids_list: list[list[int]],
@@ -200,8 +200,8 @@ def make_rollout_func(
 ) -> RolloutFunc:
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         try:
-            model = trainer.model.cpu()
-            state_dict = {k: mx.array(v) for k, v in model.state_dict().items()}
+            model = trainer.model
+            state_dict = {k: mx.array(v.detach().cpu()) for k, v in model.state_dict().items()}
             engine.update_weights_and_reset_prompt_cache(state_dict)
             
             state_list = batch_rollout(
