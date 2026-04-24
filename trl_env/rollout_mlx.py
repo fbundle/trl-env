@@ -19,7 +19,9 @@ from trl_env.environment import Env
 from trl_env.processor import Processor
 from trl_env.rollout import batch_rollout
 
+# feature flags
 
+PROMPT_CACHE: bool = True
 
 # rewrite batch_generate in mlx_lm to return logprobs
 from typing import List, Optional, Union
@@ -98,6 +100,8 @@ class MlxEngine(Engine):
 
         self.model.load_weights(file_or_weights=new_weights.items(), strict=True)
 
+        self.prompt_cache = None
+
     def tokenizer_encode(self, input_text: str) -> list[int]:
         return self.tokenizer._tokenizer(input_text).input_ids
 
@@ -110,22 +114,50 @@ class MlxEngine(Engine):
         completion_ids_list: list[list[int]] = [[] for _ in input_ids_list]
         logprobs_list: list[list[float]] = [[] for _ in input_ids_list]
 
-        response = stream_batch_generate(
-            model=self.model,
-            tokenizer=self.tokenizer,
-            prompts=input_ids_list,
-            max_tokens=self.max_completion_length,
-            sampler=mlx_lm.sample_utils.make_sampler(
-                temp=self.temperature,
-            ),
-        )
+        if PROMPT_CACHE:
+            new_prompt_cache: list[list[Any]] = [[] for _ in input_ids_list]
+            response = stream_batch_generate(
+                model=self.model,
+                tokenizer=self.tokenizer,
+                prompts=input_ids_list,
+                max_tokens=self.max_completion_length,
+                sampler=mlx_lm.sample_utils.make_sampler(
+                    temp=self.temperature,
+                ),
+                prompt_caches=self.prompt_cache,
+                return_prompt_caches=True,
+            )
 
-        for i, r in response:
-            token = r.token
-            logprob = r.logprobs[token].item()
+            for i, r in response:
+                if r.finish_reason is not None:
+                    new_prompt_cache[i] = r.prompt_cache
+                if r.finish_reason != "stop":
+                    token = r.token
+                    logprob = r.logprobs[token].item()
 
-            completion_ids_list[i].append(token)
-            logprobs_list[i].append(logprob)
+                    completion_ids_list[i].append(token)
+                    logprobs_list[i].append(logprob)
+            
+            self.prompt_cache = new_prompt_cache
+            
+        else:
+            response = stream_batch_generate(
+                model=self.model,
+                tokenizer=self.tokenizer,
+                prompts=input_ids_list,
+                max_tokens=self.max_completion_length,
+                sampler=mlx_lm.sample_utils.make_sampler(
+                    temp=self.temperature,
+                ),
+            )
+
+            for i, r in response:
+                if r.finish_reason != "stop":
+                    token = r.token
+                    logprob = r.logprobs[token].item()
+
+                    completion_ids_list[i].append(token)
+                    logprobs_list[i].append(logprob)
 
         return completion_ids_list, logprobs_list
 
@@ -197,5 +229,24 @@ if __name__ == "__main__":
     output_text = [m.tokenizer_decode(completion_ids) for completion_ids in completion_ids_list]
     
     print(output_text)
+
+
+    input_text = [
+        "umm, what was I saying again",
+        "umm, what was I saying again",
+    ]
+
+    input_text: list[str] = [m.tokenizer.apply_chat_template( # type: ignore
+        [{"role": "user", "content": text}],
+        tokenize=False,
+        add_generation_prompt=True,
+        enable_thinking=True,
+    ) for text in input_text]
+
+    print(input_text)
+
+    input_ids_list = [m.tokenizer_encode(text) for text in input_text]
+    completion_ids_list, logprobs_list = m.model_batch_generate(input_ids_list)
+    output_text = [m.tokenizer_decode(completion_ids) for completion_ids in completion_ids_list]
     
-    mlx_lm.convert
+    print(output_text)
