@@ -62,7 +62,8 @@ def stream_batch_generate(
     prompt_caches: Optional[List[List[Any]]] = None,
     max_tokens: Union[int, List[int]] = 128,
     **kwargs,
-) -> Generator[Response, None, None]:
+) -> Generator[tuple[int, Response], None, None]:
+
 
     gen = BatchGenerator(
         model,
