@@ -3,8 +3,10 @@ from __future__ import annotations
 from typing import Any, Callable
 
 import mlx.nn as nn
+import mlx.core as mx
 import mlx_lm
 import mlx_lm.sample_utils
+from mlx.utils import tree_flatten
 
 from mlx_lm.tokenizer_utils import TokenizerWrapper
 from transformers import AutoTokenizer, PreTrainedModel, PreTrainedTokenizerBase
@@ -83,9 +85,15 @@ class MlxEngine(Engine):
                 self.tokenizer.add_eos_token(eos_token)
 
 
-    def update_weights(self, model: PreTrainedModel):
-        print("[WARNING] update_weights is not current implemented")
-        return
+    def update_weights(self, state_dict: dict[str, mx.array]):
+        curr_weights = tree_flatten(self.model.parameters(), destination={})
+        new_weights: dict[str, mx.array] = {}
+
+        for key in curr_weights.keys():
+            val = state_dict[key]
+            new_weights[key] = val
+
+        self.model.load_weights(file_or_weights=new_weights.items(), strict=True)
 
     def tokenizer_encode(self, input_text: str) -> list[int]:
         return self.tokenizer._tokenizer(input_text).input_ids
@@ -152,6 +160,9 @@ def make_reward_func() -> RewardFunc:
 
 
 if __name__ == "__main__":
+    from transformers import AutoModelForCausalLM
+
+
     path = "Qwen/Qwen3.5-0.8B"
     m = MlxEngine(
         model_path=path,
@@ -159,6 +170,14 @@ if __name__ == "__main__":
         temperature=0.6,
         eos_tokens=None,
     )
+
+    model = AutoModelForCausalLM.from_pretrained(path)
+
+    state_dict = {}
+    for key, val in model.state_dict().items():
+        state_dict["language_model." + key] = mx.array(val)
+
+    m.update_weights(state_dict)
 
     input_text = [
         "hello, this is an example",
