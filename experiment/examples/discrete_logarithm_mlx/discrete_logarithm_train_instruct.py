@@ -24,7 +24,7 @@ from trl_env.processor import qwen3_instruct_processor
 from trl.trainer.grpo_trainer import GRPOTrainer
 from trl.trainer.grpo_config import GRPOConfig
 
-from trl_env.rollout_transformer import TransformerEngine, make_reward_func, make_rollout_func
+from trl_env.rollout_mlx import MlxRolloutEngine, make_reward_func, make_rollout_func
 
 def load_model_and_tokenizer(model_path: str):
     has_cuda = torch.cuda.is_available()
@@ -150,30 +150,19 @@ def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
     # prevent TRL from using apply_chat_template
     tokenizer.apply_chat_template = apply_chat_template
 
-
-    generation_kwargs=dict(
-        max_new_tokens=max_turn_length,
-        temperature=1.0,
+    engine = MlxRolloutEngine(
+        model_path=model_path,
+        max_completion_length=max_turn_length,
+        temperature=0.6,
+        extra_eos_token_list=EXTRA_EOS_TOKEN_LIST,
     )
-    # in prepare mode, always generate in full to monitor GPU memory
-    if mode == ModePrepare:
-        generation_kwargs["min_new_tokens"] = max_conversation_length
-
-    engine = TransformerEngine(
-        tokenizer=tokenizer,
-        model=model, # type: ignore
-        generation_kwargs=generation_kwargs,
-    )
-
-    for eos_token in EXTRA_EOS_TOKEN_LIST:
-        eos_token_ids = engine.tokenizer_encode(eos_token)
-        assert len(eos_token_ids) == 1
-        engine.generation_kwargs["eos_token_id"].append(eos_token_ids[0])
 
     return (
         model_path,
         processor,
         engine,
+        tokenizer,
+        model,
         deepspeed,
     )
 
@@ -203,6 +192,8 @@ def main(mode: Mode, uuid: str):
     (
         model_path,
         processor,
+        engine,
+        tokenizer,
         model,
         deepspeed,
     ) = load_model(mode=mode, max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
@@ -265,7 +256,7 @@ def main(mode: Mode, uuid: str):
     system_prompt = SYSTEM_PROMPT.format(max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
 
     rollout_func = make_rollout_func(
-        engine=model,
+        engine=engine,
         processor=processor,
         env_factory=env_factory,
         system_prompt=system_prompt,
@@ -276,11 +267,11 @@ def main(mode: Mode, uuid: str):
 
     trainer = GRPOTrainer(
         args=training_args,
-        model=model.model,
-        processing_class=model.tokenizer,
+        model=model,
+        processing_class=tokenizer,
         rollout_func=rollout_func,
         reward_funcs=reward_func, # type: ignore
-        reward_processing_classes=model.tokenizer,
+        reward_processing_classes=tokenizer,
         train_dataset=train_dataset, # type: ignore
         callbacks=[TimeBasedLogSaveCallback(
             save_every_seconds=3600,
