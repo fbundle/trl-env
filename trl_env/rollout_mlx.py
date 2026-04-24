@@ -176,12 +176,7 @@ if __name__ == "__main__":
 
     model = AutoModelForCausalLM.from_pretrained(path)
 
-    # specific for qwen3.5
-    state_dict = {}
-    for key, val in model.state_dict().items():
-        state_dict[key] = mx.array(val)
-
-    m.update_weights(state_dict)
+    m.update_weights({k: mx.array(v) for k, v in model.state_dict().items()})
 
     input_text = [
         "hello, this is an example",
