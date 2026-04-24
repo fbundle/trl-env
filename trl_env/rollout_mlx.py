@@ -18,6 +18,64 @@ from trl_env.processor import Processor
 from trl_env.rollout import batch_rollout
 
 
+
+# rewrite batch_generate in mlx_lm to return logprobs
+from typing import List, Optional, Union
+from mlx_lm.generate import BatchGenerator, GenerationBatch
+
+Response = GenerationBatch.Response
+
+
+def batch_generate(
+    model,
+    tokenizer,
+    prompts: List[List[int]],
+    prompt_caches: Optional[List[List[Any]]] = None,
+    max_tokens: Union[int, List[int]] = 128,
+    verbose: bool = False,
+    return_prompt_caches: bool = False,
+    **kwargs,
+) -> Generator[Response, None, None]:
+    """
+    Generate responses for the given batch of prompts.
+
+    Args:
+       model (nn.Module): The language model.
+       tokenizer (PreTrainedTokenizer): The tokenizer.
+       prompts (List[List[int]]): The input prompts.
+       prompt_caches (List[List[Any]], optional): Pre-computed prompt-caches
+          for each input prompt. Note, unlike ``generate_step``, the caches
+          won't be updated in-place.
+       verbose (bool): If ``True``, print tokens and timing information.
+          Default: ``False``.
+       max_tokens (Union[int, List[int]): Maximum number of output tokens. This
+          can be per prompt if a list is provided.
+       return_prompt_caches (bool): Return the prompt caches in the batch
+          responses. Default: ``False``.
+       kwargs: The remaining options get passed to :obj:`BatchGenerator`.
+          See :obj:`BatchGenerator` for more details.
+    """
+
+    gen = BatchGenerator(
+        model,
+        stop_tokens=[[t] for t in tokenizer.eos_token_ids],
+        **kwargs,
+    )
+    num_samples = len(prompts)
+    if isinstance(max_tokens, int):
+        max_tokens = [max_tokens] * len(prompts)
+
+    uids = gen.insert(prompts, max_tokens, caches=prompt_caches)
+    uid_to_index: dict[int, int] = {uid: i for i, uid in enumerate(uids)}
+    with gen.stats() as stats:
+        while responses := gen.next_generated():
+            for r in responses:
+                yield uid_to_index[r.uid], r
+    gen.close()
+
+
+
+
 def collapse_eos_token_id(completion_ids: list[int], eos_token_id: int) -> list[int]:
     try:
         index = completion_ids.index(eos_token_id)
@@ -64,24 +122,20 @@ class MlxEngine(Engine):
         completion_ids_list: list[list[int]] = []
         logprobs_list: list[list[float]] = []
 
-        for input_ids in input_ids_list:
-            completion_ids: list[int] = []
-            log_probs: list[float] = []
-            response_generator = mlx_lm.stream_generate(
-                model=self.model,
-                tokenizer=self.tokenizer,
-                prompt=input_ids,
-                max_tokens=self.max_completion_length,
-                sampler=mlx_lm.sample_utils.make_sampler(
-                    temp=self.temperature,
-                ),
-            )
-            for r in response_generator:
-                completion_ids.append(r.token)
-                log_probs.append(r.logprobs[r.token].item())
+        response = mlx_lm.batch_generate(
+            model=self.model,
+            tokenizer=self.tokenizer,
+            prompts=input_ids_list,
+            max_tokens=self.max_completion_length,
+            sampler=mlx_lm.sample_utils.make_sampler(
+                temp=self.temperature,
+            ),
+        )
+
+        import pdb; pdb.set_trace()
             
-            completion_ids_list.append(completion_ids)
-            logprobs_list.append(log_probs)
+        completion_ids_list.append(completion_ids)
+        logprobs_list.append(log_probs)
 
 
         return completion_ids_list, logprobs_list
