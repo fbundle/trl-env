@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any, Callable, Generator
 
 import mlx.nn as nn
 import mlx.core as mx
@@ -21,8 +21,6 @@ from trl_env.rollout import batch_rollout
 
 # feature flags
 
-PROMPT_CACHE: bool = True
-
 # rewrite batch_generate in mlx_lm to return logprobs
 from typing import List, Optional, Union
 from mlx_lm.generate import BatchGenerator, GenerationBatch
@@ -35,8 +33,6 @@ def stream_batch_generate(
     prompts: List[List[int]],
     prompt_caches: Optional[List[List[Any]]] = None,
     max_tokens: Union[int, List[int]] = 128,
-    verbose: bool = False,
-    return_prompt_caches: bool = False,
     **kwargs,
 ) -> Generator[Response, None, None]:
 
@@ -45,16 +41,14 @@ def stream_batch_generate(
         stop_tokens=[[t] for t in tokenizer.eos_token_ids],
         **kwargs,
     )
-    num_samples = len(prompts)
     if isinstance(max_tokens, int):
         max_tokens = [max_tokens] * len(prompts)
 
     uids = gen.insert(prompts, max_tokens, caches=prompt_caches)
     uid_to_index: dict[int, int] = {uid: i for i, uid in enumerate(uids)}
-    with gen.stats() as stats:
-        while responses := gen.next_generated():
-            for r in responses:
-                yield uid_to_index[r.uid], r
+    while responses := gen.next_generated():
+        for r in responses:
+            yield uid_to_index[r.uid], r
     gen.close()
 
 def collapse_eos_token_id(completion_ids: list[int], eos_token_id: int) -> list[int]:
@@ -64,14 +58,14 @@ def collapse_eos_token_id(completion_ids: list[int], eos_token_id: int) -> list[
         return completion_ids
     return completion_ids[: index + 1]
 
-class MlxEngine(Engine):
+class MlxEngine:
     def __init__(
-        self,
-        model_path: str,
+        self, model_path: str,
         max_completion_length: int = 256,
         temperature: float = 0.0,
-        eos_tokens: list[str] | None = None,
-    ) -> None:
+        eos_token_list: list[str] | None = None,
+    ):
+        # the easiest way to load model into MLX is just giving it a HF model directory
         model, tokenizer, _ = mlx_lm.load(  # type: ignore
             path_or_hf_repo=model_path,
             return_config=True,
@@ -79,14 +73,12 @@ class MlxEngine(Engine):
         self.model: nn.Module = model
         self.tokenizer: TokenizerWrapper = tokenizer
 
-        # 
         self.temperature = temperature
         self.max_completion_length = max_completion_length
-        if eos_tokens is not None:
-            for eos_token in eos_tokens:
+        if eos_token_list is not None:
+            for eos_token in eos_token_list:
                 self.tokenizer.add_eos_token(eos_token)
-
-
+    
     def update_weights(self, state_dict: dict[str, mx.array]):
         if hasattr(self.model, "sanitize"):
             state_dict = self.model.sanitize(state_dict)
@@ -99,66 +91,71 @@ class MlxEngine(Engine):
             new_weights[key] = val
 
         self.model.load_weights(file_or_weights=new_weights.items(), strict=True)
+    
+    def model_batch_generate(
+        self, input_ids_list: list[list[int]],
+        prompt_cache_list: Optional[List[List[Any]]] = None,
+        return_prompt_caches: bool = False,
+    ) -> tuple[list[list[int]], list[list[float]], List[Any]]:
+    
+        completion_ids_list: list[list[int]] = [[] for _ in input_ids_list]
+        logprobs_list: list[list[float]] = [[] for _ in input_ids_list]
+        new_prompt_cache_list: list[list[Any]] = [[] for _ in input_ids_list]
 
+        response = stream_batch_generate(
+            model=self.model,
+            tokenizer=self.tokenizer,
+            prompts=input_ids_list,
+            max_tokens=self.max_completion_length,
+            sampler=mlx_lm.sample_utils.make_sampler(
+                temp=self.temperature,
+            ),
+            prompt_caches=prompt_cache_list,
+            return_prompt_caches=return_prompt_caches,
+        )
+
+        for i, r in response:
+            if r.finish_reason is not None:
+                if return_prompt_caches:
+                    new_prompt_cache_list[i] = r.prompt_cache
+            if r.finish_reason != "stop":
+                token = r.token
+                logprob = r.logprobs[token].item()
+
+                completion_ids_list[i].append(token)
+                logprobs_list[i].append(logprob)
+        
+        return completion_ids_list, logprobs_list, new_prompt_cache_list
+
+
+class MlxRolloutEngine(Engine):
+    def __init__(
+        self,
+        model_path: str,
+        **kwargs,
+    ) -> None:
+        self.engine = MlxEngine(model_path, **kwargs)
         self.prompt_cache = None
 
+    def update_weights(self, state_dict: dict[str, mx.array]):
+        self.engine.update_weights(state_dict)
+        self.prompt_cache = None # reset prompt_cache
+
     def tokenizer_encode(self, input_text: str) -> list[int]:
-        return self.tokenizer._tokenizer(input_text).input_ids
+        return self.engine.tokenizer._tokenizer(input_text).input_ids
 
     def tokenizer_decode(self, completion_ids: list[int]) -> str:
-        output_text = self.tokenizer._tokenizer.decode(completion_ids)
+        output_text = self.engine.tokenizer._tokenizer.decode(completion_ids)
         assert isinstance(output_text, str)
         return output_text
     
     def model_batch_generate(self, input_ids_list: list[list[int]]) -> tuple[list[list[int]], list[list[float]]]:
-        completion_ids_list: list[list[int]] = [[] for _ in input_ids_list]
-        logprobs_list: list[list[float]] = [[] for _ in input_ids_list]
-
-        if PROMPT_CACHE:
-            new_prompt_cache: list[list[Any]] = [[] for _ in input_ids_list]
-            response = stream_batch_generate(
-                model=self.model,
-                tokenizer=self.tokenizer,
-                prompts=input_ids_list,
-                max_tokens=self.max_completion_length,
-                sampler=mlx_lm.sample_utils.make_sampler(
-                    temp=self.temperature,
-                ),
-                prompt_caches=self.prompt_cache,
-                return_prompt_caches=True,
-            )
-
-            for i, r in response:
-                if r.finish_reason is not None:
-                    new_prompt_cache[i] = r.prompt_cache
-                if r.finish_reason != "stop":
-                    token = r.token
-                    logprob = r.logprobs[token].item()
-
-                    completion_ids_list[i].append(token)
-                    logprobs_list[i].append(logprob)
-            
-            self.prompt_cache = new_prompt_cache
-            
-        else:
-            response = stream_batch_generate(
-                model=self.model,
-                tokenizer=self.tokenizer,
-                prompts=input_ids_list,
-                max_tokens=self.max_completion_length,
-                sampler=mlx_lm.sample_utils.make_sampler(
-                    temp=self.temperature,
-                ),
-            )
-
-            for i, r in response:
-                if r.finish_reason != "stop":
-                    token = r.token
-                    logprob = r.logprobs[token].item()
-
-                    completion_ids_list[i].append(token)
-                    logprobs_list[i].append(logprob)
-
+        completion_ids_list, logprobs_list, new_prompt_cache_list = self.engine.model_batch_generate(
+            input_ids_list=input_ids_list,
+            prompt_cache_list=self.prompt_cache,
+            return_prompt_caches=True,
+        )
+        self.prompt_cache = new_prompt_cache_list
         return completion_ids_list, logprobs_list
 
 
