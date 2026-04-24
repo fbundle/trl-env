@@ -14,6 +14,7 @@ from transformers.trainer_utils import get_last_checkpoint
 
 from experiment.examples.discrete_logarithm.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
 
+from experiment.examples.discrete_logarithm.discrete_logarithm_env import EOS_TOKENS
 from experiment.examples.trl_trainer_util.dataset import LazyDataset
 from experiment.examples.trl_trainer_util.trainer_callback import TimeBasedLogSaveCallback
 
@@ -76,7 +77,7 @@ def load_batch_information(mode: Mode):
     per_device_batch_size = 2
     num_generations = 8
     max_conversation_length = 4096
-    max_turn_length = 1024
+    max_turn_length = 4096
 
     if mode == ModeDebug:
         effective_batch_size = 4
@@ -164,6 +165,12 @@ def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
         generation_kwargs=generation_kwargs,
     )
 
+    for eos_token in EOS_TOKENS:
+        eos_token_ids = engine.tokenizer_encode(eos_token)
+        assert len(eos_token_ids) == 1
+        eos_token_id = eos_token_ids[0]
+        engine.generation_kwargs["eos_token_id"].append(eos_token_id)
+
     return (
         model_path,
         processor,
@@ -201,7 +208,7 @@ def main(mode: Mode, uuid: str):
         deepspeed,
     ) = load_model(mode=mode, max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
 
-    output_dir = f"mnt/output/discrete-logarithm-{os.path.basename(model_path)}-instruct-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-{uuid}"
+    output_dir = f"mnt/output/discrete-logarithm-2-{os.path.basename(model_path)}-instruct-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-{uuid}"
 
     (
         push_to_hub,
@@ -209,6 +216,8 @@ def main(mode: Mode, uuid: str):
         hf_token,
     ) = get_hf_info(output_dir)
     push_to_hub = push_to_hub and (mode != ModeDebug)
+
+
 
     # TRAIN
     train_dataset = data.map(

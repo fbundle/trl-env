@@ -24,6 +24,8 @@ assert parse_tool_call("no tool call") is None
 assert parse_answer('<|box_start|> 42 <|box_end|>') == "42"
 assert parse_answer("no answer") is None
 
+EOS_TOKENS = ["</tool_call>", "<|box_end|>"]
+
 def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, cap: int, action: str) -> tuple[float, bool, str]:
     answer_str = parse_answer(action)
     if answer_str is not None:
@@ -42,7 +44,7 @@ def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, cap: int, acti
             if h_ans != h:
                 # 0.1 point for wrong answer
                 # stop immediately
-                return 0.1, False,  f"wrong answer expected {h} got {g}^{x} = {h_ans} (mod {p})"
+                return 0.5, False,  f"wrong answer expected {h} got {g}^{x} = {h_ans} (mod {p})"
             else:
                 # 1.0 point for correct answer
                 # stop immediately

@@ -31,22 +31,20 @@ def collapse_eos_token_id(completion_ids: Int[Tensor, "n"], eos_token_id: int) -
 
 class TransformerEngine(Engine):
     def __init__(
-            self, tokenizer: PreTrainedTokenizerBase, model: PreTrainedModel,
+            self, tokenizer: PreTrainedTokenizerBase,
             generation_kwargs: dict[str, Any] | None = None,
         ):
         self.tokenizer = tokenizer
-        self.model = model
-        self.device = model.device 
-        self.eos_token_id = int(self.tokenizer.eos_token_id) # type: ignore
+        self.model: PreTrainedModel | None = None
         self.generation_kwargs = {
             "max_new_tokens": 256,
-            "eos_token_id": [self.eos_token_id],
+            "eos_token_id": [self.tokenizer.eos_token_id],
         }
         if generation_kwargs is not None:
             self.generation_kwargs.update(generation_kwargs)
         
         self.tokenizer.padding_side = "left"
-        self.tokenizer.pad_token_id = self.eos_token_id
+        self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
 
         # pop hard coded keys
         for key in ["input_ids", "attention_mask", "output_logits", "return_dict_in_generate"]:
@@ -57,7 +55,9 @@ class TransformerEngine(Engine):
         import os
         if os.environ.get("PYTORCH_CUDA_ALLOC_CONF", default=None) != "expandable_segments:True":
             warnings.warn("[WARNING] KV cache has not been implemented, set PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation")
-        
+    
+    def update_weights(self, model: PreTrainedModel):
+        self.model = model
     
     def tokenizer_encode(self, input_text: str) -> list[int]:
         return self.tokenizer(input_text).input_ids
@@ -91,7 +91,7 @@ class TransformerEngine(Engine):
         logprobs_list: list[list[float]] = []
 
         for i in range(b):
-            completion_ids: list[int] = collapse_eos_token_id(completion_ids_batch[i, :], self.eos_token_id).tolist()
+            completion_ids: list[int] = collapse_eos_token_id(completion_ids_batch[i, :], self.tokenizer.eos_token_id).tolist()
             # x[[a, b, c, d], [A, B, C, D]] = [x[a, A], x[b, B], x[c, C], x[d, D]]
             logprobs: list[float] = batch_logprobs[i, range(len(completion_ids)), completion_ids].tolist()
             
@@ -109,6 +109,7 @@ def make_rollout_func(
 ) -> RolloutFunc:
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         try:
+            engine.update_weights(trainer.model)
             # NOTE - only rollout on eval mode
             engine.model.eval()
             with torch.no_grad():
@@ -139,13 +140,14 @@ def make_reward_func() -> RewardFunc:
 if __name__ == "__main__":
     from transformers import AutoTokenizer, AutoModelForCausalLM
     path = "Qwen/Qwen3.5-0.8B"
+    model = AutoModelForCausalLM.from_pretrained(path).to("mps")
     m = TransformerEngine(
         tokenizer=AutoTokenizer.from_pretrained(path),
-        model=AutoModelForCausalLM.from_pretrained(path).to("mps"), # type: ignore
         generation_kwargs=dict(
             max_new_tokens=256,
         ),
     )
+    m.reset_weights(model)
 
     input_text = [
         "hello, this is an example",
