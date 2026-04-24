@@ -74,7 +74,7 @@ def load_batch_information(mode: Mode):
     # alpha = 1 for flash attention
     effective_batch_size = 16
     per_device_batch_size = 4
-    num_generations = 16
+    num_generations = 12
     max_conversation_length = 4096
     max_turn_length = 1024
 
