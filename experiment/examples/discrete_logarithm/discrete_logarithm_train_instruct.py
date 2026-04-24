@@ -14,7 +14,7 @@ from transformers.trainer_utils import get_last_checkpoint
 
 from experiment.examples.discrete_logarithm.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
 
-from experiment.examples.discrete_logarithm.discrete_logarithm_env import EOS_TOKENS
+from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST
 from experiment.examples.trl_trainer_util.dataset import LazyDataset
 from experiment.examples.trl_trainer_util.trainer_callback import TimeBasedLogSaveCallback
 
@@ -165,7 +165,7 @@ def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
         generation_kwargs=generation_kwargs,
     )
 
-    for eos_token in EOS_TOKENS:
+    for eos_token in EXTRA_EOS_TOKEN_LIST:
         eos_token_ids = engine.tokenizer_encode(eos_token)
         assert len(eos_token_ids) == 1
         engine.generation_kwargs["eos_token_id"].append(eos_token_ids[0])
