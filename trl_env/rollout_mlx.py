@@ -73,9 +73,6 @@ def batch_generate(
                 yield uid_to_index[r.uid], r
     gen.close()
 
-
-
-
 def collapse_eos_token_id(completion_ids: list[int], eos_token_id: int) -> list[int]:
     try:
         index = completion_ids.index(eos_token_id)
@@ -119,10 +116,10 @@ class MlxEngine(Engine):
         return output_text
     
     def model_batch_generate(self, input_ids_list: list[list[int]]) -> tuple[list[list[int]], list[list[float]]]:
-        completion_ids_list: list[list[int]] = []
-        logprobs_list: list[list[float]] = []
+        completion_ids_list: list[list[int]] = [[] for _ in input_ids_list]
+        logprobs_list: list[list[float]] = [[] for _ in input_ids_list]
 
-        response = mlx_lm.batch_generate(
+        response = batch_generate(
             model=self.model,
             tokenizer=self.tokenizer,
             prompts=input_ids_list,
@@ -132,11 +129,12 @@ class MlxEngine(Engine):
             ),
         )
 
-        import pdb; pdb.set_trace()
-            
-        completion_ids_list.append(completion_ids)
-        logprobs_list.append(log_probs)
+        for i, r in response:
+            token = r.token
+            logprob = r.logprobs[token].item()
 
+            completion_ids_list[i].append(token)
+            logprobs_list[i].append(logprob)
 
         return completion_ids_list, logprobs_list
 
