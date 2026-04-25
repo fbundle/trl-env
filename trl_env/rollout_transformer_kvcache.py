@@ -1,4 +1,5 @@
-from typing import Generator, Any
+import itertools
+from typing import Callable, Generator
 
 from dataclasses import dataclass
 
@@ -8,105 +9,103 @@ from jaxtyping import Float, Int
 
 from transformers import Cache, GenerationMixin, PreTrainedModel
 from transformers.modeling_outputs import CausalLMOutputWithPast
-# from transformers.models.auto.modeling_auto import _BaseModelWithGenerate
-
 
 class _BaseModelWithGenerate(PreTrainedModel, GenerationMixin):
     pass
-type Token = int
 
-@dataclass
-class GenerateIteration:
-    sample: tuple[Token, float] | None
-    past_key_values: Cache | None
+type Sampler = Callable[[Float[Tensor, "b d"]], Int[Tensor, "b"]]
 
-class TransformerEngine:
-    def __init__(self, model: _BaseModelWithGenerate):
-        self.model = model
+def make_sampler(temperature: float = 0.0) -> Sampler:
+    def sampler(logits: Float[Tensor, "b d"]) -> Int[Tensor, "b"]:
+        if temperature > 0:
+            probs: Float[Tensor, "b d"] = torch.softmax(logits / temperature, dim=-1)
+            tokens: Int[Tensor, "b"] = torch.multinomial(probs, num_samples=1).squeeze(dim=-1)
+        else:
+            tokens: Int[Tensor, "b"] = torch.argmax(logits, dim=-1)
+        return tokens
     
-    def stream_generate(
-        self, input_token_list: list[Token],
-        eos_token_set: set[Token],
-        max_completion_length: int = 256,
-        temperature: float = 0.0,
-        past_key_values: Cache | None = None,
-    ) -> Generator[GenerateIteration, None, None]:
-        input_token_queue: list[Token] = input_token_list
+    return sampler
 
-        with torch.no_grad():
-            for _ in range(max_completion_length):
-                # batch_size b = 1
-                input_ids: Int[Tensor, "b n"] = torch.tensor([input_token_queue], device=self.model.device)
-                o: CausalLMOutputWithPast = self.model.__call__(
-                    input_ids=input_ids,
-                    output_logits=True,
-                    return_dict_in_generate=True,
-                    use_cache=True,
-                    past_key_values=past_key_values,
-                )
+type StopCond = Callable[[int, int], bool]
 
+def make_stop_cond(eos_token_set: set[int], max_completion_length: int) -> StopCond:
+    def stop_cond(turn: int, token: int) -> bool:
+        return (token in eos_token_set) or (turn >= max_completion_length)
 
-                assert o.logits is not None
-                # get logits
-                # o.logits: Float[Tensor, "b n d"]
-                logits: Float[Tensor, "b d"] = o.logits[:, -1, :]
+    return stop_cond
 
-                # sample token
-                # x[[a, b, c], [A, B, C]] = [x[a, A], x[b, B], x[c, C]]
-                if temperature > 0:
-                    scaled_probs: Float[Tensor, "b d"] = torch.softmax(logits / temperature, dim=-1)
-                    sampled_tokens: Int[Tensor, "b"] = torch.multinomial(scaled_probs, num_samples=1).squeeze(dim=-1)
-                else:
-                    sampled_tokens: Int[Tensor, "b"] = torch.argmax(logits, dim=-1)
+def stream_generate(
+    input_tokens: list[int],
+    model: _BaseModelWithGenerate,
+    sampler: Sampler,
+    stop_cond: StopCond,
+    past_key_values: Cache | None = None,
+) -> Generator[tuple[int, float, Cache | None], None, None]:
+    
+    next_input_tokens: list[int] = input_tokens
 
+    for turn in itertools.count():
+        # batch_size b = 1
+        input_ids: Int[Tensor, "b n"] = torch.tensor([next_input_tokens], device=model.device)
+        o: CausalLMOutputWithPast = model.__call__(
+            input_ids=input_ids,
+            output_logits=True,
+            return_dict_in_generate=True,
+            use_cache=True,
+            past_key_values=past_key_values,
+        )
 
-                # get original logprobs
-                logprobs: Float[Tensor, "b d"] = torch.log_softmax(logits, dim=-1)
-                sampled_logprobs: Float[Tensor, "b"] = logprobs[range(len(sampled_tokens)), sampled_tokens]
+        # get logits - o.logits: Float[Tensor, "b n d"]
+        assert o.logits is not None
+        logits: Float[Tensor, "b d"] = o.logits[:, -1, :]
 
-                # yield output
-                sampled_token: Token = sampled_tokens.tolist()[0]
-                sampled_logprob: float = sampled_logprobs.tolist()[0]
-                yield GenerateIteration(
-                    sample=(sampled_token, sampled_logprob),
-                    past_key_values=None
-                )
+        # sample next tokens
+        sample: Int[Tensor, "b"] = sampler(logits)
 
-                # prepare next generate
-                input_token_queue = [sampled_token]
-                past_key_values = o.past_key_values
+        # get logprob of the sample
+        # x[[a, b, c], [A, B, C]] = [x[a, A], x[b, B], x[c, C]]
+        logprobs: Float[Tensor, "b d"] = torch.log_softmax(logits, dim=-1)
+        sample_logprob: Float[Tensor, "b"] = logprobs[range(len(sample)), sample]
 
-                # early stop 
-                if sampled_token in eos_token_set:
-                    break
-            
-            # calculate past_key_values for next user input
-            input_ids: Int[Tensor, "b n"] = torch.tensor([input_token_queue], device=self.model.device)
-            o: CausalLMOutputWithPast = self.model.__call__(
-                input_ids=input_ids,
-                output_logits=True,
-                return_dict_in_generate=True,
-                use_cache=True,
-                past_key_values=past_key_values,
-            )
+        # batch_size b = 1
+        next_token: int = sample.tolist()[0]
+        next_logprob: float = sample_logprob.tolist()[0]
+        assert isinstance(next_token, int) and isinstance(next_logprob, float)
 
-            yield GenerateIteration(
-                sample=None,
-                past_key_values=o.past_key_values,
-            )
+        # prepare next iteration
+        next_input_tokens = [next_token]
+        past_key_values = o.past_key_values
 
-    def generate(self, *args, **kwargs) -> tuple[list[tuple[Token, float]], Cache | None]:
-        sample_list = []
-        past_key_values = None
+        # yield output
+        yield (next_token, next_logprob, past_key_values)
 
-        for i in self.stream_generate(*args, **kwargs):
-            if i.sample is not None:
-                sample_list.append(i.sample)
-            past_key_values = i.past_key_values
-        
-        return sample_list, past_key_values
-        
-        
+        # early stop 
+        if stop_cond(turn, next_token):
+            break
+
+def finalize_cache(past_token: int, past_key_values: Cache | None) -> Cache | None:
+    input_ids: Int[Tensor, "b n"] = torch.tensor([[past_token]], device=model.device)
+    o: CausalLMOutputWithPast = model.__call__(
+        input_ids=input_ids,
+        output_logits=True,
+        return_dict_in_generate=True,
+        use_cache=True,
+        past_key_values=past_key_values,
+    )
+    return o.past_key_values
+
+def generate(*args, **kwargs) -> tuple[list[int], list[float], Cache | None]:
+    next_token_list = []
+    next_logprob_list = []
+    last_past_key_values = None
+    for next_token, next_logprob, past_key_values in stream_generate(*args, **kwargs):
+        next_token_list.append(next_token)
+        next_logprob_list.append(next_logprob)
+        last_past_key_values = past_key_values
+    
+    last_past_key_values = finalize_cache(next_token_list[-1], last_past_key_values)
+    return next_token_list, next_logprob_list, last_past_key_values
+
 
 if __name__ == "__main__":
     from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -115,32 +114,34 @@ if __name__ == "__main__":
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     model: _BaseModelWithGenerate = AutoModelForCausalLM.from_pretrained(model_path).to(device) #type: ignore
-    engine = TransformerEngine(model=model)
+
+    temperature = 0.6
 
     past_key_values = None
 
     text1 = f"<|im_start|>user\n the cat is lying on a table <|im_end|>\n<|im_start|>assistant\n"
-    input_token_list1: list[Token] = tokenizer(text1).input_ids
+    input_token_list1: list[int] = tokenizer(text1).input_ids
 
-    sample_list1, past_key_values = engine.generate(
-        input_token_list=input_token_list1,
-        eos_token_set={tokenizer.eos_token_id},
+    completion_list1, _, past_key_values = generate(
+        input_tokens=input_token_list1,
+        model=model,
+        sampler=make_sampler(temperature=temperature),
+        stop_cond=make_stop_cond(eos_token_set={tokenizer.eos_token_id}, max_completion_length=64),
         past_key_values=past_key_values,
     )
 
     assert past_key_values is not None
 
     text2 = f"<|im_start|>user\n what is the cat lying on?  <|im_end|>\n<|im_start|>assistant\n"
-    input_token_list2: list[Token] = tokenizer(text2).input_ids
+    input_token_list2: list[int] = tokenizer(text2).input_ids
     
-    sample_list2, past_key_values = engine.generate(
-        input_token_list=input_token_list2,
-        eos_token_set={tokenizer.eos_token_id},
+    completion_list2, _, past_key_values = generate(
+        input_tokens=input_token_list2,
+        model=model,
+        sampler=make_sampler(temperature=temperature),
+        stop_cond=make_stop_cond(eos_token_set={tokenizer.eos_token_id}, max_completion_length=128),
         past_key_values=past_key_values,
     )
-
-    completion_list1: list[Token] = list(list(zip(*sample_list1))[0]) # type: ignore
-    completion_list2: list[Token] = list(list(zip(*sample_list2))[0]) # type: ignore
 
 
     token_list = input_token_list1 + completion_list1 + input_token_list2 + completion_list2
