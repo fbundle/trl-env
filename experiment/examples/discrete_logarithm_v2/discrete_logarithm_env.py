@@ -8,16 +8,18 @@ from trl_env.environment import Action, Delta, Env, Seed
 import re
 
 def parse_tool_call(s: str) -> str | None:
-    match = re.search(r'<tool_call>(.*?)</tool_call>', s, re.DOTALL)
-    if match is None:
+    parts = s.split("<tool_call>", maxsplit=1)
+    if len(parts) <= 1:
         return None
-    return match.group(1).strip()
+    s = parts[1]
+    return s.split("</tool_call>")[0]
 
 def parse_answer(s: str) -> str | None:
-    match = re.search(r'<\|box_start\|>(.*?)<\|box_end\|>', s, re.DOTALL)
-    if match is None:
+    parts = s.split("<|box_start|>", maxsplit=1)
+    if len(parts) <= 1:
         return None
-    return match.group(1).strip()
+    s = parts[1]
+    return s.split("<|box_end|>")[0]
 
 def format_tool_call(js_code: str) -> str:
     return f"<tool_call>{js_code}</tool_call>"
@@ -26,9 +28,8 @@ def format_answer(answer: str) -> str:
     return f"<|box_start|>{answer}<|box_end|>"
 
 assert parse_tool_call('<tool_call>console.log(1)</tool_call>') == "console.log(1)"
-assert parse_tool_call('<tool_call>\nconsole.log(1)\n</tool_call>') == "console.log(1)"
 assert parse_tool_call("no tool call") is None
-assert parse_answer('<|box_start|> 42 <|box_end|>') == "42"
+assert parse_answer('<|box_start|>42<|box_end|>') == "42"
 assert parse_answer("no answer") is None
 assert format_tool_call("console.log(1)") == "<tool_call>console.log(1)</tool_call>"
 assert format_answer("42") == "<|box_start|>42<|box_end|>"
@@ -125,13 +126,12 @@ class DiscreteLogarithmEnv(Env):
 Find x such that {self.seed.g}^x = {self.seed.h} (mod {self.seed.p}), this is the discrete logarithm problem
 You are allow to use javascript by writing
 
-<tool_call>
-your code here
-</tool_call>
+<tool_call>your javascript code here</tool_call>
 
 I will run that code in a V8 engine with a timeout of 1 seconds and 50 MB max memory.
 If you are confident with your answer, write
-<|box_start|> answer <|box_end|>
+
+<|box_start|>answer<|box_end|>
 
 Note that, only the first match is consider. Once the answer is given, the environment is terminated.
 """
