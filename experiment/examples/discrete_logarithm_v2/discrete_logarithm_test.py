@@ -6,7 +6,7 @@ from trl_env.v2.model_transformer import TransformerRolloutModel
 from trl_env.v2.rollout import batch_rollout, rollout
 from trl_env.v2.processor import qwen3_instruct_processor
 
-from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST, DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
+from experiment.examples.discrete_logarithm_v2.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST, DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
 from trl_env.v2.tokenizer import TransformerTokenizer
 
 
@@ -17,7 +17,7 @@ def main():
     model_path = "Qwen/Qwen3.5-0.8B"
     processor = qwen3_instruct_processor
 
-    max_turn_length = 512
+    max_turn_length = 1024
     max_conversation_length = 4096
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)

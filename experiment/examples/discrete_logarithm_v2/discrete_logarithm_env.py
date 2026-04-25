@@ -2,7 +2,7 @@
 from pydantic import BaseModel
 from py_mini_racer import MiniRacer
 
-from trl_env.v2.environment import Action, Delta, Env, Seed
+from trl_env.environment import Action, Delta, Env, Seed
 
 import re
 
