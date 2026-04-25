@@ -22,7 +22,6 @@ def make_rollout_func(
             seed_list=prompts,
         )
 
-        
         return {
             "prompt_ids": [state.conversation[:state.initial_length] for state in state_list],
             "completion_ids": [state.conversation[state.initial_length:] for state in state_list],

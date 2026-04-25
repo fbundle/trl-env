@@ -1,0 +1,61 @@
+
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+from trl_env.v2.model_transformer import TransformerRolloutModel
+from trl_env.v2.rollout import batch_rollout, rollout
+from trl_env.v2.processor import qwen3_instruct_processor
+
+from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST, DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
+from trl_env.v2.tokenizer import TransformerTokenizer
+
+
+def logger(role: str, content: str):
+    print(f"{role}> {content}")
+
+def main():
+    model_path = "Qwen/Qwen3.5-0.8B"
+    processor = qwen3_instruct_processor
+
+    max_turn_length = 512
+    max_conversation_length = 4096
+
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        dtype=torch.bfloat16,
+        device_map="auto",
+    ).eval()
+
+    eos_token_set = {tokenizer.eos_token_id}
+    eos_token_set.update([tokenizer.encode(eos_token)[0] for eos_token in EXTRA_EOS_TOKEN_LIST])
+
+    model_factory = lambda: TransformerRolloutModel(
+        model=model, # type: ignore
+        temperature=0.6,
+        eos_token_set=eos_token_set,
+        max_completion_length=max_turn_length,
+    )
+
+    system_prompt = SYSTEM_PROMPT.format(
+        max_turn_length=max_turn_length,
+        max_conversation_length=max_conversation_length,
+    )
+
+    rollout(
+        processor=processor,
+        tokenizer=TransformerTokenizer(tokenizer),
+        model_factory=model_factory,
+        env_factory=lambda : DiscreteLogarithmEnv(),
+        seed=DiscreteLogarithmSeed(
+            g=2, h=3, p=5,
+        ).model_dump_json(),
+        system_prompt=system_prompt,
+        max_conversation_length=max_conversation_length,
+        conversation_logger=logger,
+    )
+
+
+
+if __name__ == "__main__":
+    main()
