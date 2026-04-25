@@ -1,7 +1,6 @@
 
-
-from dataclasses import dataclass
-from typing import Iterator, Callable
+from dataclasses import asdict, dataclass
+from typing import Iterable, Iterator, Callable
 from jaxtyping import Float, Int
 
 from torch import Tensor
@@ -16,7 +15,7 @@ type SampleFunc = Callable[[Logits], Token]
 type ModelFunc[T] = Callable[[T, TokenList], tuple[T, Logits]]
 
 @dataclass
-class GenerateIteration[T]:
+class StreamGenerationIteration[T]:
     state: T
     token: Token
     logits: Logits
@@ -28,7 +27,7 @@ def stream_generate[T](
     sample_func: SampleFunc,
     eos_token_set: set[Token],
     max_completion_length: int,
-) -> Iterator[tuple[T, Token, Logits]]:
+) -> Iterator[StreamGenerationIteration[T]]:
 
     # put new_token_list into the model
     # get logits for the first sampling step
@@ -40,7 +39,7 @@ def stream_generate[T](
         # put the new token into the model 
         state, next_logits = model_func(state, torch.tensor([token]))
         # yield the state after the new token
-        yield state, token, logits
+        yield StreamGenerationIteration(state=state, token=token, logits=logits)
         # stop condition
         if token in eos_token_set:
             break
@@ -48,15 +47,15 @@ def stream_generate[T](
         logits = next_logits
 
 
-def make_sample(temperature: float = 0.0) -> SampleFunc:
-    def sample(logits: Logits) -> Token:
+def make_sample_func(temperature: float = 0.0) -> SampleFunc:
+    def sample_func(logits: Logits) -> Token:
         if temperature > 0:
             dist: Float[Tensor, "d"] = torch.softmax(logits / temperature, dim=-1)
             token: int = int(torch.multinomial(dist, num_samples=1).squeeze(dim=-1).item())
         else:
             token: int = int(torch.argmax(logits, dim=-1).item())
         return token
-    return sample
+    return sample_func
 
 
 from transformers import Cache, GenerationMixin, PreTrainedModel
@@ -89,8 +88,63 @@ def make_model_func(model: _BaseModelWithGenerate) -> ModelFunc[Cache | None]:
 if __name__ == "__main__":
     from transformers import AutoTokenizer, AutoModelForCausalLM
 
+    from trl_env.v2.tokenizer import TransformerTokenizer
+    from trl_env.v2.processor import qwen3_instruct_processor
+
     device = "mps"
     model_path = "Qwen/Qwen3.5-0.8B"
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model: _BaseModelWithGenerate = AutoModelForCausalLM.from_pretrained(model_path).to(device) #type: ignore
+    t = AutoTokenizer.from_pretrained(model_path)
+    m: _BaseModelWithGenerate = AutoModelForCausalLM.from_pretrained(model_path).to(device) #type: ignore
+
+    eos_token: int = t.eos_token_id
+
+    sample_func = make_sample_func(temperature=0.6)
+    model_func = make_model_func(model=m)
+
+    tokenizer = TransformerTokenizer(t)
+    processor = qwen3_instruct_processor
+
+    def dict_transpose[T](ds: Iterable[dict[str, T]]) -> dict[str, list[T]]:
+        o: dict[str, list[T]] = {}
+        for d in ds:
+            for k, v in d.items():
+                if k not in o:
+                    o[k] = []
+                o[k].append(v)
+        return o
+
+    def generate_text(state: Cache | None, new_text: str) -> tuple[Cache | None, str]:
+        new_token_list: list[int] = tokenizer.encode(processor.append_user_input(new_text))
+        
+        i: Iterator[StreamGenerationIteration[Cache | None]] = stream_generate(
+            new_token_list=torch.tensor(new_token_list),
+            prev_state=state,
+            model_func=model_func,
+            sample_func=sample_func,
+            eos_token_set={eos_token},
+            max_completion_length=256,
+        )
+
+        completion_token_list = []
+        new_state = None
+        for o in i:
+            new_state = o.state
+            completion_token_list.append(o.token)
+        
+        completion_text = tokenizer.decode(completion_token_list)
+        return new_state, completion_text
+
+    state: Cache | None = None
+
+    new_text = "the cat is lying on the table"
+    print(new_text)
+    state, completion_text = generate_text(state, new_text)
+    print(completion_text)
+
+    new_text = "where is the cat lying on?"
+    print(new_text)
+    state, completion_text = generate_text(state, new_text)
+    print(completion_text)
+
+
