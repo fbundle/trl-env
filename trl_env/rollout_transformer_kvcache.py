@@ -158,6 +158,7 @@ def make_rollout_func(
         try:
             # NOTE - only rollout on eval mode
             engine.model.eval()
+            engine.reset_states(len(prompts))
             with torch.no_grad():
                 state_list = batch_rollout(
                     engine=engine, processor=processor, env_factory=env_factory,
