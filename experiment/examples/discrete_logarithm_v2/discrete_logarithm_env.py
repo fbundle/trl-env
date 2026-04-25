@@ -126,9 +126,7 @@ Find x such that {self.seed.g}^x = {self.seed.h} (mod {self.seed.p}), this is th
 You are allow to use javascript by writing
 
 <tool_call>
-```javascript
 your code here
-```
 </tool_call>
 
 I will run that code using PyMiniRacer which is a wrapper over V8 with a timeout of 1 seconds and 50 MB max memory.
