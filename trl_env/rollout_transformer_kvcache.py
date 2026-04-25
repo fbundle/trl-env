@@ -137,7 +137,6 @@ class TransformerEngine(Engine):
             completion_ids = []
             logprobs = []
             assert len(self.states) == len(input_ids_list)
-            assert state is not None
             for token, logits in self.states[i].generate(torch.tensor(input_tokens)):
                 completion_ids.append(token)
                 dist: Float[Tensor, "d"] = torch.log_softmax(logits, dim=-1)
