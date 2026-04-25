@@ -32,21 +32,21 @@ def apply_chat_template(text: str) -> str:
         enable_thinking=False,
     )
 
-def get_last_tokens(completion_ids_list: list[list[int]]) -> list[int | None]:
-    last_tokens = []
-    for completion_ids in completion_ids_list:
-        if len(completion_ids) >= 1:
-            last_tokens.append(completion_ids[-1])
-        else:
-            last_tokens.append(None)
-    return last_tokens
+def get_last_token(completion_ids: list[int]) -> int | None:
+    if len(completion_ids) >= 1:
+        return completion_ids[-1]
+    else:
+        return None
 
-def early_stop(last_tokens: list[int | None]) -> bool:
-    for token in last_tokens:
+
+def early_stop(completion_ids_list: list[list[int]]) -> bool:
+    for completion_ids in completion_ids_list:
+        token = get_last_token(completion_ids)
         if token != tokenizer.eos_token_id:
             return False
     return True
 
+temperature = 0.6
 
 input_text_list = [
     "hello, this is an example",
@@ -62,21 +62,19 @@ input_ids_list = [tokenizer(text).input_ids for text in input_text_list]
 e: BatchEncoding = tokenizer.pad(
     {"input_ids": input_ids_list},
     padding=True,
-    return_tensors="pt",
-).to(device)
+    # return_tensors="pt",
+)
+
 completion_ids_list: list[list[int]] = [[] for _ in range(batch_size)]
 
-i = {
-    "input_ids": e.input_ids,
-    "attention_mask": e.attention_mask,
-}
+input_ids: list[list[int]] = e.input_ids
+attention_mask: list[list[int]] = e.attention_mask
 
 with torch.no_grad():
     past_key_values = None
     for _ in range(max_completion_length):
-        last_tokens = get_last_tokens(completion_ids_list)
-        
-        if early_stop(last_tokens):
+
+        if early_stop(completion_ids_list):
             break
 
         o: CausalLMOutputWithPast = model(
@@ -84,7 +82,8 @@ with torch.no_grad():
             return_dict_in_generate=True,
             use_cache=True,
             past_key_values=past_key_values,
-            **i,
+            input_ids=torch.tensor(input_ids).to(device),
+            attention_mask=torch.tensor(attention_mask).to(device),
         )
 
         past_key_values = o.past_key_values
@@ -92,29 +91,20 @@ with torch.no_grad():
         assert o.logits is not None
         logits: Float[Tensor, "b d"] = o.logits[:, -1, :]
 
-        probs = torch.softmax(logits / 0.6, dim=-1)
-        completion = torch.multinomial(probs, num_samples=1).squeeze(-1)
+        # probs = torch.softmax(logits / temperature, dim=-1)
+        # completion = torch.multinomial(probs, num_samples=1).squeeze(-1)
 
-        # completion: Int[Tensor, "b"] = torch.argmax(logits, dim=-1)
+        completion: Int[Tensor, "b"] = torch.argmax(logits, dim=-1)
 
-        new_i = {
-            "input_ids": [[] for _ in range(batch_size)],
-            "attention_mask": [[] for _ in range(batch_size)],
-        }
-
-        completion_list: list[int] = completion.tolist()
-        for n in range(batch_size):
-            if last_tokens[n] != tokenizer.eos_token_id:
-                completion_ids_list[n].append(completion_list[n])
-                new_i["input_ids"][n].append(completion_list[n])
-                new_i["attention_mask"][n].append(1)
+        for i, token in enumerate(completion.tolist()):
+            if get_last_token(completion_ids_list[i]) == tokenizer.eos_token_id:
+                input_ids[i] = [tokenizer.eos_token_id]
+                attention_mask[i].append(0)
             else:
-                new_i["input_ids"][n].append(tokenizer.eos_token_id)
-                new_i["attention_mask"][n].append(0)
-        
-        i = {k: torch.tensor(v).to(device) for k, v in new_i.items()}
+                completion_ids_list[i].append(token)
+                input_ids[i] = [token]
+                attention_mask[i].append(1)
 
-completion_ids_list = [collapse_eos_token_id(completion_ids, tokenizer.eos_token_id) for completion_ids in completion_ids_list]
 
 completion_text = [tokenizer.decode(completion_ids) for completion_ids in completion_ids_list]
 
