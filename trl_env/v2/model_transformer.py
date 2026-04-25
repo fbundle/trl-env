@@ -5,15 +5,15 @@ import torch
 from transformers import Cache
 
 from trl_env.v2.generate import StreamGenerationIteration, Token, stream_generate
-from trl_env.v2.model import RolloutModelWithCache
+from trl_env.v2.model import RolloutModel
 from trl_env.v2.generate_transformer import BaseModelWithGenerate, make_model_func, make_sample_func
 
-class TransformerRolloutModelWithCache(RolloutModelWithCache):
+class TransformerRolloutModel(RolloutModel):
     def __init__(self,
     model: BaseModelWithGenerate,
     temperature: float,
     eos_token_set: set[Token],
-    max_completion_length: int
+    max_completion_length: int,
 ) -> None:
         self.model: BaseModelWithGenerate = model
         self.state: Cache | None = None
