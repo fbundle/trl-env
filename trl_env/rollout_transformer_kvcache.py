@@ -29,7 +29,7 @@ def apply_chat_template(text: str) -> str:
         [{"role": "user", "content": text}],
         tokenize=False,
         add_generation_prompt=True,
-        enable_thinking=True,
+        enable_thinking=False,
     )
 
 def get_last_tokens(completion_ids_list: list[list[int]]) -> list[int | None]:
@@ -80,7 +80,6 @@ with torch.no_grad():
             break
 
         o: CausalLMOutputWithPast = model(
-            temperature=0.6,
             output_logits=True,
             return_dict_in_generate=True,
             use_cache=True,
