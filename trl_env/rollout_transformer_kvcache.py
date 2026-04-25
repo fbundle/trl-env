@@ -100,11 +100,15 @@ class TransformerEngine(Engine):
         model: _BaseModelWithGenerate,
         temperature: float = 0.6,
         max_completion_length: int = 512,
+        extra_eos_tokens: list[int] | None = None,
     ) -> None:
         self.tokenizer = tokenizer
         self.model = model
         self.temperature = temperature
         self.max_completion_length = max_completion_length
+        self.eos_tokens = {self.tokenizer.eos_token_id} # type: ignore
+        if extra_eos_tokens is not None:
+            self.eos_tokens.update(extra_eos_tokens)
 
         self.states: list[State[Cache | None]] = []
     
@@ -121,7 +125,7 @@ class TransformerEngine(Engine):
             generate=make_model_generate(self.model),
             sampler=make_sampler(self.temperature),
             stop_cond=make_stop_cond(
-                eos_token_set={self.tokenizer.eos_token_id},    # type: ignore
+                eos_token_set=self.eos_tokens,    # type: ignore
                 max_completion_length=self.max_completion_length,
             )
         ) for _ in range(n)]
