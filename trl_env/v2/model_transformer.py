@@ -5,10 +5,10 @@ import torch
 from transformers import Cache
 
 from trl_env.v2.generate import StreamGenerationIteration, Token, stream_generate
-from trl_env.v2.model import RolloutModelContext
+from trl_env.v2.model import RolloutModel
 from trl_env.v2.generate_transformer import BaseModelWithGenerate, make_model_func, make_sample_func
 
-class TransformerRolloutModelContext(RolloutModelContext):
+class TransformerRolloutModel(RolloutModel):
     def __init__(self,
     model: BaseModelWithGenerate,
     temperature: float,
