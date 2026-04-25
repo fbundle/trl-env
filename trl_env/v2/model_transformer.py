@@ -23,7 +23,7 @@ class TransformerRolloutModel(RolloutModel):
         self.eos_token_set = eos_token_set
         self.max_completion_length = max_completion_length
     
-    def generate(self, input_ids: list[int]) -> tuple[list[int], list[float]]
+    def generate(self, input_ids: list[int]) -> tuple[list[int], list[float]]:
         new_input_ids = input_ids[self.last_length:]
         
 
