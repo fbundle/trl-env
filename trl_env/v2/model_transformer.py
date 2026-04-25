@@ -16,7 +16,7 @@ class TransformerRolloutModelContext(RolloutModelContext):
     max_completion_length: int,
 ) -> None:
         self.model: BaseModelWithGenerate = model
-        self.state: Cache | None = None
+        self.cache: Cache | None = None
         self.last_length = 0
 
         self.temperature = temperature
@@ -29,7 +29,7 @@ class TransformerRolloutModelContext(RolloutModelContext):
 
         i: Iterator[StreamGenerationIteration[Cache | None]] = stream_generate(
             new_token_list=torch.tensor(new_input_ids),
-            prev_state=self.state,
+            prev_state=self.cache,
             model_func=make_model_func(model=self.model),
             sample_func=make_sample_func(temperature=self.temperature),
             eos_token_set=self.eos_token_set,
@@ -38,16 +38,16 @@ class TransformerRolloutModelContext(RolloutModelContext):
 
         completion_token_list = []
         logprob_list = []
-        new_state = None
+        new_cache = None
         for o in i:
             logprobs: Float[torch.Tensor, "d"] = torch.log_softmax(o.logits, dim=-1)
             logprob: float = float(logprobs[o.token].item())
             
             completion_token_list.append(o.token)
             logprob_list.append(logprob)
-            new_state = o.state
+            new_cache = o.state
         
-        self.state = new_state
+        self.cache = new_cache
         self.last_length = len(input_ids) + len(completion_token_list)
 
         
