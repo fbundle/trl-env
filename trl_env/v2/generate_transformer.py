@@ -27,21 +27,25 @@ class BaseModelWithGenerate(PreTrainedModel, GenerationMixin):
 def make_model_func(model: BaseModelWithGenerate) -> ModelFunc[Cache | None]:
     def model_func(prev_cache: Cache | None, token_list: TokenList) -> tuple[Cache | None, Logits]:
         with torch.no_grad():
-            # batch_size b = 1
-            batch_input_ids: Int[Tensor, "b n"] = token_list.unsqueeze(dim=0).to(model.device)
-            o: CausalLMOutputWithPast = model.forward(
-                input_ids=batch_input_ids,
-                output_logits=True,
-                return_dict_in_generate=True,
-                use_cache=True,
-                past_key_values=prev_cache,
-            )
-            # get logits - o.logits: Float[Tensor, "b n d"]
-            assert o.logits is not None
-            batch_logits: Float[Tensor, "b n d"] = o.logits
-            logits: Float[Tensor, "d"] = batch_logits[0, -1, :]
-            next_cache: Cache | None = o.past_key_values
-            return next_cache, logits
+            try:
+                model.eval()
+                # batch_size b = 1
+                batch_input_ids: Int[Tensor, "b n"] = token_list.unsqueeze(dim=0).to(model.device)
+                o: CausalLMOutputWithPast = model.forward(
+                    input_ids=batch_input_ids,
+                    output_logits=True,
+                    return_dict_in_generate=True,
+                    use_cache=True,
+                    past_key_values=prev_cache,
+                )
+                # get logits - o.logits: Float[Tensor, "b n d"]
+                assert o.logits is not None
+                batch_logits: Float[Tensor, "b n d"] = o.logits
+                logits: Float[Tensor, "d"] = batch_logits[0, -1, :]
+                next_cache: Cache | None = o.past_key_values
+                return next_cache, logits
+            finally:
+                model.train()
     return model_func
 
 
