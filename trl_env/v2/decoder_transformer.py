@@ -2,20 +2,20 @@ from typing import Iterator
 from jaxtyping import Float
 
 import torch
-from transformers import Cache
+from transformers import Cache, PreTrainedModel
 
 from trl_env.v2.generate import StreamGenerationIteration, Token, stream_generate
-from trl_env.v2.model import RolloutModel
-from trl_env.v2.generate_transformer import BaseModelWithGenerate, make_model_func, make_sample_func
+from trl_env.v2.decoder import RolloutDecoder
+from trl_env.v2.generate_transformer import make_model_func, make_sample_func
 
-class TransformerRolloutModel(RolloutModel):
+class TransformerRolloutDecoder(RolloutDecoder):
     def __init__(self,
-    model: BaseModelWithGenerate,
+    model: PreTrainedModel,
     temperature: float,
     eos_token_set: set[Token],
     max_completion_length: int,
 ) -> None:
-        self.model: BaseModelWithGenerate = model
+        self.model: PreTrainedModel = model
         self.cache: Cache | None = None
         self.last_length = 0
 
@@ -30,7 +30,7 @@ class TransformerRolloutModel(RolloutModel):
         i: Iterator[StreamGenerationIteration[Cache | None]] = stream_generate(
             new_token_list=torch.tensor(new_input_ids),
             prev_state=self.cache,
-            model_func=make_model_func(model=self.model),
+            model_func=make_model_func(model=self.model), # type: ignore
             sample_func=make_sample_func(temperature=self.temperature),
             eos_token_set=self.eos_token_set,
             max_completion_length=self.max_completion_length,

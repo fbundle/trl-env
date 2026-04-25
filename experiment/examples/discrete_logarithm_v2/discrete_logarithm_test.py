@@ -2,7 +2,7 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from trl_env.v2.model_transformer import TransformerRolloutModel
+from trl_env.v2.decoder_transformer import TransformerRolloutDecoder
 from trl_env.v2.rollout import batch_rollout, rollout
 from trl_env.v2.processor import qwen3_instruct_processor
 
@@ -27,7 +27,7 @@ def main():
     eos_token_set = {t.eos_token_id}
     eos_token_set.update([tokenizer.encode(eos_token)[0] for eos_token in EXTRA_EOS_TOKEN_LIST])
 
-    model_factory = lambda: TransformerRolloutModel(
+    model_factory = lambda: TransformerRolloutDecoder(
         model=AutoModelForCausalLM.from_pretrained( # type: ignore
             model_path,
             dtype=torch.bfloat16,

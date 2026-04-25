@@ -1,12 +1,19 @@
 from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any, Callable
+
+from transformers import GenerationMixin, PreTrainedModel
 
 from trl_env.v2.environment import Env, Seed
-from trl_env.v2.model import RolloutModel
+from trl_env.v2.generate import Token
+from trl_env.v2.decoder import RolloutDecoder
 from trl_env.v2.processor import Processor
 from trl_env.v2.tokenizer import Tokenizer
+
+from trl.trainer.grpo_trainer import RolloutFunc, GRPOTrainer, RewardFunc
+
+
 
 @dataclass
 class RolloutState:
@@ -43,7 +50,7 @@ def init_rollout_state(initial_prompt_ids: list[int]) -> RolloutState:
 
 def rollout(
     processor: Processor, tokenizer: Tokenizer,
-    model_factory: Callable[[], RolloutModel], env_factory: Callable[[], Env],
+    decoder: RolloutDecoder, env: Env,
     system_prompt: str, max_conversation_length: int,
     seed: Seed, 
     conversation_logger: Callable[[str, str], None] | None = None,
@@ -52,8 +59,7 @@ def rollout(
         if conversation_logger is not None:
             conversation_logger(role, content)
 
-    model = model_factory()
-    env, initial_delta = env_factory().reset(seed)
+    env, initial_delta = env.reset(seed)
 
     LOG("system", system_prompt)
     LOG("user", initial_delta)
@@ -69,7 +75,7 @@ def rollout(
         if not env.alive:
             break
         # model generate
-        completion_ids, logprobs = model.generate(state.conversation)
+        completion_ids, logprobs = decoder.generate(state.conversation)
         # append agent completion
         state = state.append_completion(
             completion_ids=completion_ids,
@@ -103,28 +109,36 @@ def rollout(
             break
     return state
 
-def batch_rollout(
+
+def make_rollout_func(
     processor: Processor, tokenizer: Tokenizer,
-    model_factory: Callable[[], RolloutModel], env_factory: Callable[[], Env],
+    make_decoder: Callable[[PreTrainedModel], RolloutDecoder],
+    env_factory: Callable[[], Env],    
     system_prompt: str, max_conversation_length: int,
-    seed_list: list[Seed], 
-    conversation_logger: Callable[[str, str], None] | None = None,
-) -> list[RolloutState]:
-    batch_size = len(seed_list)
-    state_list = []
-    with ThreadPoolExecutor(max_workers=batch_size) as executor:
-        output_iter = executor.map(lambda xs: rollout(*xs), zip(
-            [processor for _ in range(batch_size)],
-            [tokenizer for _ in range(batch_size)],
-            [model_factory for _ in range(batch_size)],
-            [env_factory for _ in range(batch_size)],
-            [system_prompt for _ in range(batch_size)],
-            [max_conversation_length for _ in range(batch_size)],
-            seed_list,
-            [conversation_logger for _ in range(batch_size)],
-        ))
-        for state in output_iter:
+) -> RolloutFunc:
+    def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
+        state_list = []
+        for prompt in prompts:
+            state = rollout(
+                processor=processor, tokenizer=tokenizer,
+                decoder=make_decoder(trainer.model), # type: ignore
+                env=env_factory(),
+                system_prompt=system_prompt, max_conversation_length=max_conversation_length,
+                seed=prompt,
+            )
             state_list.append(state)
-    return state_list
 
+        return {
+            "prompt_ids": [state.conversation[:state.initial_length] for state in state_list],
+            "completion_ids": [state.conversation[state.initial_length:] for state in state_list],
+            "env_mask": [state.env_mask for state in state_list],
+            "logprobs": [state.logprobs for state in state_list],
+            "reward": [state.reward for state in state_list],
+        }
 
+    return rollout_func
+
+def make_reward_func() -> RewardFunc:
+    def reward_func(prompts: list[str], completions: list[str], reward: list[float], **kwargs) -> list[float]:
+            return reward
+    return reward_func # type: ignore

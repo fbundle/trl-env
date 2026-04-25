@@ -18,13 +18,10 @@ def make_sample_func(temperature: float = 0.0) -> SampleFunc:
     return sample_func
 
 
-from transformers import Cache, GenerationMixin, PreTrainedModel
+from transformers import Cache, PreTrainedModel
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
-class BaseModelWithGenerate(PreTrainedModel, GenerationMixin):
-    ...
-
-def make_model_func(model: BaseModelWithGenerate) -> ModelFunc[Cache | None]:
+def make_model_func(model: PreTrainedModel) -> ModelFunc[Cache | None]:
     def model_func(prev_cache: Cache | None, token_list: TokenList) -> tuple[Cache | None, Logits]:
         with torch.no_grad():
             try:
@@ -59,7 +56,7 @@ if __name__ == "__main__":
     model_path = "Qwen/Qwen3.5-0.8B"
 
     t = AutoTokenizer.from_pretrained(model_path)
-    m: BaseModelWithGenerate = AutoModelForCausalLM.from_pretrained(model_path).to(device) #type: ignore
+    m: PreTrainedModel = AutoModelForCausalLM.from_pretrained(model_path).to(device) #type: ignore
 
     eos_token: int = t.eos_token_id
 
