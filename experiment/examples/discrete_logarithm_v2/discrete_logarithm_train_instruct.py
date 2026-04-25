@@ -118,7 +118,7 @@ def load_batch_information(mode: Mode):
     effective_batch_size = 32
     per_device_batch_size = 1
     num_generations = 16
-    max_conversation_length = 4096
+    max_conversation_length = 8192
     max_turn_length = 2048
 
     if mode == ModeDebug:
