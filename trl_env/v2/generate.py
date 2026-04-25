@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
     eos_token: int = t.eos_token_id
 
-    sample_func = make_sample_func(temperature=0.6)
+    sample_func = make_sample_func(temperature=0.0)
     model_func = make_model_func(model=m)
 
     tokenizer = TransformerTokenizer(t)
@@ -115,7 +115,7 @@ if __name__ == "__main__":
         return o
 
     def generate_text(state: Cache | None, new_text: str) -> tuple[Cache | None, str]:
-        new_token_list: list[int] = tokenizer.encode(processor.append_user_input(new_text))
+        new_token_list: list[int] = tokenizer.encode(new_text)
         
         i: Iterator[StreamGenerationIteration[Cache | None]] = stream_generate(
             new_token_list=torch.tensor(new_token_list),
@@ -137,12 +137,12 @@ if __name__ == "__main__":
 
     state: Cache | None = None
 
-    new_text = "the cat is lying on the table"
+    new_text = processor.append_user_input("the cat is lying on the rooftop")
     print(new_text)
     state, completion_text = generate_text(state, new_text)
     print(completion_text)
 
-    new_text = "where is the cat lying on?"
+    new_text = rocessor.append_user_input("where is the cat?")
     print(new_text)
     state, completion_text = generate_text(state, new_text)
     print(completion_text)
