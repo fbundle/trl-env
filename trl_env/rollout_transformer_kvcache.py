@@ -1,5 +1,5 @@
 import itertools
-from typing import Callable, Generator
+from typing import Callable, Generator, Protocol
 
 from dataclasses import dataclass
 
@@ -14,7 +14,6 @@ class _BaseModelWithGenerate(PreTrainedModel, GenerationMixin):
     pass
 
 type Sampler = Callable[[Float[Tensor, "b d"]], Int[Tensor, "b"]]
-
 def make_sampler(temperature: float = 0.0) -> Sampler:
     def sampler(logits: Float[Tensor, "b d"]) -> Int[Tensor, "b"]:
         if temperature > 0:
@@ -27,12 +26,35 @@ def make_sampler(temperature: float = 0.0) -> Sampler:
     return sampler
 
 type StopCond = Callable[[int, int], bool]
-
 def make_stop_cond(eos_token_set: set[int], max_completion_length: int) -> StopCond:
     def stop_cond(turn: int, token: int) -> bool:
         return (token in eos_token_set) or (turn >= max_completion_length)
 
     return stop_cond
+
+type OptionalCache = Cache | None
+type Tokens = Int[Tensor, "n"]
+type Logits = Float[Tensor, "n d"]
+type Generate = Callable[[Tokens, OptionalCache], tuple[Logits, OptionalCache]]
+
+def make_generate(model: _BaseModelWithGenerate) -> Generate:
+    def generate(input_tokens: Tokens, prev_cache: OptionalCache) -> tuple[Logits, OptionalCache]:
+        # batch_size b = 1
+        input_ids: Int[Tensor, "b n"] = input_tokens.unsqueeze(dim=0).to(model.device)
+        o: CausalLMOutputWithPast = model.forward(
+            input_ids=input_ids,
+            output_logits=True,
+            return_dict_in_generate=True,
+            use_cache=True,
+            past_key_values=prev_cache,
+        )
+        # get logits - o.logits: Float[Tensor, "b n d"]
+        assert o.logits is not None
+        logits: Float[Tensor, "n d"] = o.logits[0, :, :]
+        cache: OptionalCache = o.past_key_values
+        return logits, cache
+
+    return generate
 
 def stream_generate(
     input_tokens: list[int],
@@ -41,13 +63,11 @@ def stream_generate(
     stop_cond: StopCond,
     past_key_values: Cache | None = None,
 ) -> Generator[tuple[int, float, Cache | None], None, None]:
-    
     next_input_tokens: list[int] = input_tokens
-
     for turn in itertools.count():
         # batch_size b = 1
         input_ids: Int[Tensor, "b n"] = torch.tensor([next_input_tokens], device=model.device)
-        o: CausalLMOutputWithPast = model.__call__(
+        o: CausalLMOutputWithPast = model.forward(
             input_ids=input_ids,
             output_logits=True,
             return_dict_in_generate=True,
