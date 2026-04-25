@@ -1,4 +1,5 @@
 from __future__ import annotations
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Callable
 
@@ -102,6 +103,28 @@ def rollout(
             break
     return state
 
-
+def batch_rollout(
+    processor: Processor, tokenizer: Tokenizer,
+    model_factory: Callable[[], RolloutModel], env_factory: Callable[[], Env],
+    system_prompt: str, max_conversation_length: int,
+    seed_list: list[Seed], 
+    conversation_logger: Callable[[str, str], None] | None = None,
+) -> list[RolloutState]:
+    batch_size = len(seed_list)
+    state_list = []
+    with ThreadPoolExecutor(max_workers=batch_size) as executor:
+        output_iter = executor.map(lambda xs: rollout(*xs), zip(
+            [processor for _ in range(batch_size)],
+            [tokenizer for _ in range(batch_size)],
+            [model_factory for _ in range(batch_size)],
+            [env_factory for _ in range(batch_size)],
+            [system_prompt for _ in range(batch_size)],
+            [max_conversation_length for _ in range(batch_size)],
+            seed_list,
+            [conversation_logger for _ in range(batch_size)],
+        ))
+        for state in output_iter:
+            state_list.append(state)
+    return state_list
 
 
