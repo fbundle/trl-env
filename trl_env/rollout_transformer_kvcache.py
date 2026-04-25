@@ -111,6 +111,7 @@ class TransformerEngine(Engine):
             self.eos_tokens.update(extra_eos_tokens)
 
         self.states: list[State[Cache | None]] = []
+        
     
     def tokenizer_encode(self, input_text: str) -> list[int]:
         return self.tokenizer(input_text).input_ids
