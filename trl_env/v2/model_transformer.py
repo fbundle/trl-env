@@ -1,0 +1,48 @@
+from typing import Iterator
+from jaxtyping import Float
+
+import torch
+from transformers import Cache
+
+from trl_env.v2.generate import StreamGenerationIteration, Token, stream_generate
+from trl_env.v2.model import RolloutModelWithCache
+from trl_env.v2.generate_transformer import BaseModelWithGenerate, make_model_func, make_sample_func
+
+class TransformerRolloutModelWithCache(RolloutModelWithCache):
+    def __init__(self,
+    model: BaseModelWithGenerate,
+    temperature: float,
+    eos_token_set: set[Token],
+    max_completion_length: int
+) -> None:
+        self.model: BaseModelWithGenerate = model
+        self.state: Cache | None = None
+
+        self.temperature = temperature
+        self.eos_token_set = eos_token_set
+        self.max_completion_length = max_completion_length
+    
+    def generate(self, input_ids: list[int]) -> tuple[list[int], list[float]]
+        i: Iterator[StreamGenerationIteration[Cache | None]] = stream_generate(
+            new_token_list=torch.tensor(input_ids),
+            prev_state=self.state,
+            model_func=make_model_func(model=self.model),
+            sample_func=make_sample_func(temperature=self.temperature),
+            eos_token_set=self.eos_token_set,
+            max_completion_length=self.max_completion_length,
+        )
+
+        completion_token_list = []
+        logprob_list = []
+        new_state = None
+        for o in i:
+            logprobs: Float[torch.Tensor, "d"] = torch.log_softmax(o.logits, dim=-1)
+            logprob: float = float(logprobs[o.token].item())
+            
+            completion_token_list.append(o.token)
+            logprob_list.append(logprob)
+            new_state = o.state
+        
+        self.state = new_state
+        
+        return completion_token_list, logprob_list
