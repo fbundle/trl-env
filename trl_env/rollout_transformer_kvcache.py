@@ -119,13 +119,8 @@ if __name__ == "__main__":
 
     past_key_values = None
 
-    text1 = "my pen is purple"
-    input_token_list1: list[Token] = tokenizer.apply_chat_template( # type: ignore
-        [{"role": "user", "content": text1}],
-        tokenize=True,
-        add_generation_prompt=True,
-        enable_thinking=False,
-    ).input_ids
+    text1 = f"<|im_start|>user\n the cat is lying on a table <|im_end|>\n<|im_start|>assistant\n"
+    input_token_list1: list[Token] = tokenizer(text1).input_ids
 
     sample_list1, past_key_values = engine.generate(
         input_token_list=input_token_list1,
@@ -133,14 +128,10 @@ if __name__ == "__main__":
         past_key_values=past_key_values,
     )
 
+    assert past_key_values is not None
 
-    text2 = "what was I saying?"
-    input_token_list2: list[Token] = tokenizer.apply_chat_template( # type: ignore
-        [{"role": "user", "content": text2}],
-        tokenize=True,
-        add_generation_prompt=True,
-        enable_thinking=False,
-    ).input_ids
+    text2 = f"<|im_start|>user\n what is the cat lying on?  <|im_end|>\n<|im_start|>assistant\n"
+    input_token_list2: list[Token] = tokenizer(text2).input_ids
     
     sample_list2, past_key_values = engine.generate(
         input_token_list=input_token_list2,
