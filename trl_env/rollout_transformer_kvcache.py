@@ -71,19 +71,22 @@ class State[T]:
         self._cache = cache
     
     def generate(self, input_tokens: list[int]) -> Generator[tuple[int, Logits], None, None]:
-        for turn in itertools.count():
-            # generate
-            self._cache, logits = self._generate(self._cache, torch.tensor(input_tokens))
-            # sample
-            token = self._sampler(logits)
-            yield token, logits
-            if self._stop_cond(turn, token):
-                break
-            # prepare next generate
-            input_tokens = [token]
-
-        # finally, put the last token into the cache
-        self._cache, _ = self._generate(self._cache, torch.tensor([token]))
+        token = None
+        try:
+            for turn in itertools.count():
+                # generate
+                self._cache, logits = self._generate(self._cache, torch.tensor(input_tokens))
+                # sample
+                token = self._sampler(logits)
+                yield token, logits
+                if self._stop_cond(turn, token):
+                    break
+                # prepare next generate
+                input_tokens = [token]
+        finally:
+            # finally, put the last token into the cache
+            if token is not None:
+                self._cache, _ = self._generate(self._cache, torch.tensor([token]))
 
 if __name__ == "__main__":
     from transformers import AutoTokenizer, AutoModelForCausalLM
