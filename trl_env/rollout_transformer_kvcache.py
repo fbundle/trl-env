@@ -59,14 +59,13 @@ class TransformerEngine:
                 scaled_probs: Float[Tensor, "b d"] = torch.softmax(logits / temperature, dim=-1)
                 sampled_tokens: Int[Tensor, "b"] = torch.multinomial(scaled_probs, num_samples=1).squeeze(dim=-1)
 
-                # original logprobs
+                # get original logprobs
                 logprobs: Float[Tensor, "b d"] = torch.log_softmax(logits, dim=-1)
                 sampled_logprobs: Float[Tensor, "b"] = logprobs[range(len(sampled_tokens)), sampled_tokens]
 
-
+                # yield output
                 sampled_token: Token = sampled_tokens.tolist()[0]
                 sampled_logprob: float = sampled_logprobs.tolist()[0]
-
                 yield GenerateIteration(
                     sample=(sampled_token, sampled_logprob),
                     past_key_values=None
