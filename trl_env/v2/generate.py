@@ -89,7 +89,7 @@ if __name__ == "__main__":
     from transformers import AutoTokenizer, AutoModelForCausalLM
 
     from trl_env.v2.tokenizer import TransformerTokenizer
-    from trl_env.v2.processor import qwen3_instruct_processor
+    from trl_env.v2.processor import *
 
     device = "mps"
     model_path = "Qwen/Qwen3.5-0.8B"
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     model_func = make_model_func(model=m)
 
     tokenizer = TransformerTokenizer(t)
-    processor = qwen3_instruct_processor
+    processor = qwen3_processor
 
     def dict_transpose[T](ds: Iterable[dict[str, T]]) -> dict[str, list[T]]:
         o: dict[str, list[T]] = {}
@@ -123,7 +123,7 @@ if __name__ == "__main__":
             model_func=model_func,
             sample_func=sample_func,
             eos_token_set={eos_token},
-            max_completion_length=256,
+            max_completion_length=512,
         )
 
         completion_token_list = []
