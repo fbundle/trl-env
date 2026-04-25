@@ -70,7 +70,7 @@ all_modes = [ModeTrain, ModePrepare, ModeDebug]
 
 def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
     processor = qwen3_instruct_processor
-    model_path = "Qwen/Qwen3.5-0.8B"
+    model_path = "Qwen/Qwen3.5-4B"
     debug_model_path = "Qwen/Qwen3.5-0.8B"
 
     deepspeed = None # TODO - change to "conf/ds_zero2.json" for multi GPUs
