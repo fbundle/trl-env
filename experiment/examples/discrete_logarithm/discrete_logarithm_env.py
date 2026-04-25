@@ -42,7 +42,7 @@ def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, cap: int, acti
         else:
             h_ans = pow(g, x, p)
             if h_ans != h:
-                # 0.1 point for wrong answer
+                # 0.5 point for wrong answer
                 # stop immediately
                 return 0.5, False,  f"wrong answer expected {h} got {g}^{x} = {h_ans} (mod {p})"
             else:
