@@ -142,7 +142,7 @@ if __name__ == "__main__":
     state, completion_text = generate_text(state, new_text)
     print(completion_text)
 
-    new_text = rocessor.append_user_input("where is the cat?")
+    new_text = processor.append_user_input("where is the cat?")
     print(new_text)
     state, completion_text = generate_text(state, new_text)
     print(completion_text)
