@@ -20,18 +20,19 @@ def main():
     max_turn_length = 1024
     max_conversation_length = 4096
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_path,
-        dtype=torch.bfloat16,
-        device_map="auto",
-    ).eval()
+    t = AutoTokenizer.from_pretrained(model_path)
 
-    eos_token_set = {tokenizer.eos_token_id}
+    tokenizer = TransformerTokenizer(t)
+
+    eos_token_set = {t.eos_token_id}
     eos_token_set.update([tokenizer.encode(eos_token)[0] for eos_token in EXTRA_EOS_TOKEN_LIST])
 
     model_factory = lambda: TransformerRolloutModel(
-        model=model, # type: ignore
+        model=AutoModelForCausalLM.from_pretrained( # type: ignore
+            model_path,
+            dtype=torch.bfloat16,
+            device_map="auto",
+        ).eval(), 
         temperature=0.6,
         eos_token_set=eos_token_set,
         max_completion_length=max_turn_length,
@@ -44,7 +45,7 @@ def main():
 
     rollout(
         processor=processor,
-        tokenizer=TransformerTokenizer(tokenizer),
+        tokenizer=tokenizer,
         model_factory=model_factory,
         env_factory=lambda : DiscreteLogarithmEnv(),
         seed=DiscreteLogarithmSeed(

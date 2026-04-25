@@ -129,7 +129,7 @@ You are allow to use javascript by writing
 your code here
 </tool_call>
 
-I will run that code using PyMiniRacer which is a wrapper over V8 with a timeout of 1 seconds and 50 MB max memory.
+I will run that code in a V8 engine with a timeout of 1 seconds and 50 MB max memory.
 If you are confident with your answer, write
 <|box_start|> answer <|box_end|>
 

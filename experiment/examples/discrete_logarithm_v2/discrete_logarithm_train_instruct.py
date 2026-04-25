@@ -12,19 +12,19 @@ from accelerate import PartialState
 from transformers.trainer_utils import get_last_checkpoint
 
 
-from experiment.examples.discrete_logarithm.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
+from experiment.examples.discrete_logarithm_v2.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
 
-from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST
+from experiment.examples.discrete_logarithm_v2.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST
 from experiment.examples.trl_trainer_util.dataset import LazyDataset
 from experiment.examples.trl_trainer_util.trainer_callback import TimeBasedLogSaveCallback
 
-from trl_env.processor import qwen3_instruct_processor
+from trl_env.v2.processor import qwen3_instruct_processor
 
 
 from trl.trainer.grpo_trainer import GRPOTrainer
 from trl.trainer.grpo_config import GRPOConfig
 
-from trl_env.rollout_transformer import TransformerEngine, make_reward_func, make_rollout_func
+from trl_env.v2.rollout_transformer import make_reward_func, make_rollout_func
 
 def load_model_and_tokenizer(model_path: str):
     has_cuda = torch.cuda.is_available()
@@ -77,12 +77,32 @@ def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
         model_path = debug_model_path
         deepspeed = None
 
-    model, tokenizer = load_model_and_tokenizer(model_path)
+    model, t = load_model_and_tokenizer(model_path)
     def apply_chat_template(*args, **kwargs):
         raise RuntimeError("GRPO must not use apply_chat_template")
 
     # prevent TRL from using apply_chat_template
-    tokenizer.apply_chat_template = apply_chat_template
+    t.apply_chat_template = apply_chat_template
+
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        dtype=torch.bfloat16,
+        device_map="auto",
+    ).eval()
+
+    eos_token_set = {t.eos_token_id}
+    eos_token_set.update([t.encode(eos_token)[0] for eos_token in EXTRA_EOS_TOKEN_LIST])
+
+    model_factory = lambda: TransformerRolloutModel(
+        model=model, # type: ignore
+        temperature=0.6,
+        eos_token_set=eos_token_set,
+        max_completion_length=max_turn_length,
+    )
+
+
+
+
 
 
     generation_kwargs=dict(
@@ -107,7 +127,8 @@ def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
     return (
         model_path,
         processor,
-        engine,
+        tokenizer,
+        model_factory,
         deepspeed,
     )
 
