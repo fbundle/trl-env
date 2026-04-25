@@ -134,7 +134,7 @@ if __name__ == "__main__":
     )
 
 
-    text2 = "what is the color of my pen again?"
+    text2 = "what was I saying?"
     input_token_list2: list[Token] = tokenizer.apply_chat_template( # type: ignore
         [{"role": "user", "content": text2}],
         tokenize=True,
