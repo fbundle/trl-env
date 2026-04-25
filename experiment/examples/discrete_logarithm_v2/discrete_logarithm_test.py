@@ -3,7 +3,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from trl_env.v2.decoder_transformer import TransformerRolloutDecoder
-from trl_env.v2.rollout import batch_rollout, rollout
+from trl_env.v2.rollout import rollout
 from trl_env.v2.processor import qwen3_instruct_processor
 
 from experiment.examples.discrete_logarithm_v2.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST, DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
@@ -27,7 +27,7 @@ def main():
     eos_token_set = {t.eos_token_id}
     eos_token_set.update([tokenizer.encode(eos_token)[0] for eos_token in EXTRA_EOS_TOKEN_LIST])
 
-    model_factory = lambda: TransformerRolloutDecoder(
+    decoder = TransformerRolloutDecoder(
         model=AutoModelForCausalLM.from_pretrained( # type: ignore
             model_path,
             dtype=torch.bfloat16,
@@ -46,8 +46,8 @@ def main():
     rollout(
         processor=processor,
         tokenizer=tokenizer,
-        model_factory=model_factory,
-        env_factory=lambda : DiscreteLogarithmEnv(),
+        decoder=decoder,
+        env=DiscreteLogarithmEnv(),
         seed=DiscreteLogarithmSeed(
             g=2, h=3, p=5,
         ).model_dump_json(),
