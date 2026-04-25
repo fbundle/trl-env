@@ -7,7 +7,7 @@ from trl_env.environment import Action, Delta, Env, Seed
 import re
 
 def parse_tool_call(s: str) -> str | None:
-    match = re.search(r'<tool_call>\s*```javascript(.*?)```\s*</tool_call>', s, re.DOTALL)
+    match = re.search(r'<tool_call>(.*?)</tool_call>', s, re.DOTALL)
     if match is None:
         return None
     return match.group(1).strip()
@@ -18,11 +18,20 @@ def parse_answer(s: str) -> str | None:
         return None
     return match.group(1).strip()
 
+def format_tool_call(js_code: str) -> str:
+    return f"<tool_call>{js_code}</tool_call>"
 
-assert parse_tool_call('<tool_call>\n```javascript\nconsole.log(1)\n```\n</tool_call>') == "console.log(1)"
+def format_answer(answer: str) -> str:
+    return f"<|box_start|>{answer}<|box_end|>"
+
+assert parse_tool_call('<tool_call>console.log(1)</tool_call>') == "console.log(1)"
+assert parse_tool_call('<tool_call>\nconsole.log(1)\n</tool_call>') == "console.log(1)"
 assert parse_tool_call("no tool call") is None
 assert parse_answer('<|box_start|> 42 <|box_end|>') == "42"
 assert parse_answer("no answer") is None
+assert format_tool_call("console.log(1)") == "<tool_call>console.log(1)</tool_call>"
+assert format_answer("42") == "<|box_start|>42<|box_end|>"
+
 
 EXTRA_EOS_TOKEN_LIST = ["</tool_call>", "<|box_end|>"]
 
