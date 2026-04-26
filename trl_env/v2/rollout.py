@@ -1,12 +1,10 @@
 from __future__ import annotations
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from transformers import GenerationMixin, PreTrainedModel
+from transformers import PreTrainedModel
 
 from trl_env.v2.environment import Env, Seed
-from trl_env.v2.generate import Token
 from trl_env.v2.decoder import RolloutDecoder
 from trl_env.v2.processor import Processor
 from trl_env.v2.tokenizer import Tokenizer

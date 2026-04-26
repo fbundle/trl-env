@@ -68,7 +68,7 @@ all_modes = [ModeTrain, ModePrepare, ModeDebug]
 
 def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
     processor = qwen3_instruct_processor
-    model_path = "Qwen/Qwen3.5-0.8B"
+    model_path = "Qwen/Qwen3.5-4B"
     debug_model_path = "Qwen/Qwen3.5-0.8B"
 
     deepspeed = None # TODO - change to "conf/ds_zero2.json" for multi GPUs
@@ -118,11 +118,11 @@ def load_batch_information(mode: Mode):
     # per device memory ~ batch_size x num_generations x max_conversation_length^\alpha
     # alpha = 2 for usual transformer
     # alpha = 1 for flash attention
-    effective_batch_size = 16
-    per_device_batch_size = 4
-    num_generations = 8
-    max_conversation_length = 4096
-    max_turn_length = 1024
+    effective_batch_size = 32
+    per_device_batch_size = 1
+    num_generations = 16
+    max_conversation_length = 8192
+    max_turn_length = 2048
 
     if mode == ModeDebug:
         effective_batch_size = 4
