@@ -1,91 +1,105 @@
 
+from dataclasses import dataclass
+from typing import Literal
+
 from pydantic import BaseModel
 from py_mini_racer import MiniRacer
 import jiwer
 
 from trl_env.environment import Action, Delta, Env, Seed
 
-import re
+@dataclass
+class ParsedAction:
+    action_type: Literal["tool_call", "answer", None]
+    action_value: str = ""
+    format_points: float = 0 # [0, 1]
 
-def parse_tool_call(s: str) -> str | None:
-    parts = s.split("<tool_call>", maxsplit=1)
-    if len(parts) <= 1:
-        return None
-    s = parts[1]
-    return s.split("</tool_call>")[0]
+f = lambda x: 1 / (1 + x)
 
-def parse_answer(s: str) -> str | None:
-    parts = s.split("<|box_start|>", maxsplit=1)
-    if len(parts) <= 1:
-        return None
-    s = parts[1]
-    return s.split("<|box_end|>")[0]
+def parse_action(action: str) -> ParsedAction:
+    parts = action.split("<|box_start|>")
+    if len(parts) >= 2:
+        action_value = parts[1].split("<|box_end|>")[0]
+        format_points = f(jiwer.cer(f"<|box_start|>{action_value}<|box_end|>", action))
+        return ParsedAction(
+            action_type="answer",
+            action_value=action_value,
+            format_points=format_points,
+        )
 
-def format_tool_call(js_code: str) -> str:
-    return f"<tool_call>{js_code}</tool_call>"
-
-def format_answer(answer: str) -> str:
-    return f"<|box_start|>{answer}<|box_end|>"
-
-assert parse_tool_call('<tool_call>console.log(1)</tool_call>') == "console.log(1)"
-assert parse_tool_call("no tool call") is None
-assert parse_answer('<|box_start|>42<|box_end|>') == "42"
-assert parse_answer("no answer") is None
-assert format_tool_call("console.log(1)") == "<tool_call>console.log(1)</tool_call>"
-assert format_answer("42") == "<|box_start|>42<|box_end|>"
-
+    parts = action.split("<tool_call>")
+    if len(parts) >= 2:
+        action_value = parts[1].split("</tool_call>")[0]
+        format_points = f(jiwer.cer(f"<tool_call>{action_value}</tool_call>", action))
+        return ParsedAction(
+            action_type="tool_call",
+            action_value=action_value,
+            format_points=format_points,
+        )
+    
+    return ParsedAction(
+        action_type=None,
+        format_points=0.0,
+    )
 
 EXTRA_EOS_TOKEN_LIST = ["</tool_call>", "<|box_end|>"]
 
 f = lambda x: 1 / (1 + x)
 
-def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, cap: int, action: str) -> tuple[float, bool, str]:
-    answer_str = parse_answer(action)
-    if answer_str is not None:
-        format_points = f(jiwer.cer(format_answer(answer_str), action))
+def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, action: str) -> tuple[float, bool, str]:
+    a = parse_action(action)
 
+    format_points = a.format_points
+
+    if a.action_type == "answer":
         try:
-            x = int(answer_str)
+            x = int(a.action_value)
         except ValueError:
             x = None
-
-        
 
         if x is None:
             # zero points for no answer
             # stop immediately
-            return 0.0 + format_points, False, f"integer not found, found {answer_str}"
+            action_points = 0.0
+            alive = False
+            delta = f"integer not found, found {a.action_value}"
         else:
             h_ans = pow(g, x, p)
             if h_ans != h:
                 # 0.5 point for wrong answer
                 # stop immediately
-                return 0.5 + format_points, False,  f"wrong answer expected {h} got {g}^{x} = {h_ans} (mod {p})"
+                action_points = 0.5
+                alive = False
+                delta = f"wrong answer expected {h} got {g}^{x} = {h_ans} (mod {p})"
             else:
                 # 1.0 point for correct answer
                 # stop immediately
-                return 1.0 + format_points, False, f"correct answer"
-    
-    code_str = parse_tool_call(action)
-    if code_str is not None:
-        format_points = f(jiwer.cer(format_tool_call(code_str), action))
-
+                action_points = 1.0
+                alive = False
+                delta = "correct answer"
+    elif a.action_type == "tool_call":
         try:
-            result = mini_racer.eval(code=code_str, timeout=1000, max_memory=50 * 1024 * 1024)  # 1s, 50MB
+            result = mini_racer.eval(code=a.action_value, timeout=1000, max_memory=50 * 1024 * 1024)  # 1s, 50MB
             result_str = str(result)
+            # 0.3 point for compile ok
+            action_points = 0.3
         except Exception as e:
+            # 0.2 point for compile error
             result_str = str(e)
+            action_points = 0.2
         
-        result_str = result_str[:cap] # cap the output
+        delta = f"## INPUT ##\n{a.action_value}\n## OUTPUT ##\n{result_str[:256]}"
+        alive = True
+    else:
+        # nothing detected
+        # zero points for wrong format
+        # stop immediately
+        action_points = 0.0
+        alive = False
+        delta = "no tool or answer is detected"
 
-        # 0.3 point for knowing how to use tool
-        # keep going
-        return 0.3 + format_points, True, f"## INPUT ##\n{code_str}\n## OUTPUT ##\n{result_str}"
-
-    # nothing detected
-    # zero points for wrong format
-    # stop immediately
-    return 0.0, False, "no tool or answer is detected"
+    total_points = 0.3 * format_points + 0.7 * action_points
+    return total_points, alive, delta
 
 SYSTEM_PROMPT = """
 every turn, you can output a maximum number of {max_turn_length} tokens
@@ -146,7 +160,6 @@ Note that, only the first match is consider. Once the answer is given, the envir
             h=h,
             p=p,
             mini_racer=self.mini_racer,
-            cap=256,
             action=action,
         )
 
