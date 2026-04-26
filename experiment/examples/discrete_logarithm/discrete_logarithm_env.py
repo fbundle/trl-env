@@ -1,57 +1,75 @@
 
 from pydantic import BaseModel
 from py_mini_racer import MiniRacer
+import jiwer
 
 from trl_env.environment import Action, Delta, Env, Seed
 
 import re
 
 def parse_tool_call(s: str) -> str | None:
-    match = re.search(r'<tool_call>\s*```javascript(.*?)```\s*</tool_call>', s, re.DOTALL)
-    if match is None:
+    parts = s.split("<tool_call>", maxsplit=1)
+    if len(parts) <= 1:
         return None
-    return match.group(1).strip()
+    s = parts[1]
+    return s.split("</tool_call>")[0]
 
 def parse_answer(s: str) -> str | None:
-    match = re.search(r'<\|box_start\|>(.*?)<\|box_end\|>', s, re.DOTALL)
-    if match is None:
+    parts = s.split("<|box_start|>", maxsplit=1)
+    if len(parts) <= 1:
         return None
-    return match.group(1).strip()
+    s = parts[1]
+    return s.split("<|box_end|>")[0]
 
+def format_tool_call(js_code: str) -> str:
+    return f"<tool_call>{js_code}</tool_call>"
 
-assert parse_tool_call('<tool_call>\n```javascript\nconsole.log(1)\n```\n</tool_call>') == "console.log(1)"
+def format_answer(answer: str) -> str:
+    return f"<|box_start|>{answer}<|box_end|>"
+
+assert parse_tool_call('<tool_call>console.log(1)</tool_call>') == "console.log(1)"
 assert parse_tool_call("no tool call") is None
-assert parse_answer('<|box_start|> 42 <|box_end|>') == "42"
+assert parse_answer('<|box_start|>42<|box_end|>') == "42"
 assert parse_answer("no answer") is None
+assert format_tool_call("console.log(1)") == "<tool_call>console.log(1)</tool_call>"
+assert format_answer("42") == "<|box_start|>42<|box_end|>"
+
 
 EXTRA_EOS_TOKEN_LIST = ["</tool_call>", "<|box_end|>"]
+
+f = lambda x: 1 / (1 + x)
 
 def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, cap: int, action: str) -> tuple[float, bool, str]:
     answer_str = parse_answer(action)
     if answer_str is not None:
+        format_points = f(jiwer.cer(format_answer(answer_str), action))
+
         try:
             x = int(answer_str)
         except ValueError:
             x = None
+
         
-        
+
         if x is None:
             # zero points for no answer
             # stop immediately
-            return 0.0, False, f"integer not found, found {answer_str}"
+            return 0.0 + format_points, False, f"integer not found, found {answer_str}"
         else:
             h_ans = pow(g, x, p)
             if h_ans != h:
                 # 0.5 point for wrong answer
                 # stop immediately
-                return 0.5, False,  f"wrong answer expected {h} got {g}^{x} = {h_ans} (mod {p})"
+                return 0.5 + format_points, False,  f"wrong answer expected {h} got {g}^{x} = {h_ans} (mod {p})"
             else:
                 # 1.0 point for correct answer
                 # stop immediately
-                return 1.0, False, f"correct answer"
+                return 1.0 + format_points, False, f"correct answer"
     
     code_str = parse_tool_call(action)
     if code_str is not None:
+        format_points = f(jiwer.cer(format_tool_call(code_str), action))
+
         try:
             result = mini_racer.eval(code=code_str, timeout=1000, max_memory=50 * 1024 * 1024)  # 1s, 50MB
             result_str = str(result)
@@ -62,7 +80,7 @@ def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, cap: int, acti
 
         # 0.3 point for knowing how to use tool
         # keep going
-        return 0.3, True, f"## INPUT ##\n{code_str}\n## OUTPUT ##\n{result_str}"
+        return 0.3 + format_points, True, f"## INPUT ##\n{code_str}\n## OUTPUT ##\n{result_str}"
 
     # nothing detected
     # zero points for wrong format
@@ -108,15 +126,12 @@ class DiscreteLogarithmEnv(Env):
 Find x such that {self.seed.g}^x = {self.seed.h} (mod {self.seed.p}), this is the discrete logarithm problem
 You are allow to use javascript by writing
 
-<tool_call>
-```javascript
-your code here
-```
-</tool_call>
+<tool_call>your javascript code here</tool_call>
 
-I will run that code using PyMiniRacer which is a wrapper over V8 with a timeout of 1 seconds and 50 MB max memory.
+I will run that code in a V8 engine with a timeout of 1 seconds and 50 MB max memory.
 If you are confident with your answer, write
-<|box_start|> answer <|box_end|>
+
+<|box_start|>answer<|box_end|>
 
 Note that, only the first match is consider. Once the answer is given, the environment is terminated.
 """
