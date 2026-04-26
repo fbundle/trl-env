@@ -117,6 +117,7 @@ def make_rollout_func(
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         state_list = []
         for prompt in prompts:
+            # TODO - currently we only do batch_size=1
             state = rollout(
                 processor=processor, tokenizer=tokenizer,
                 decoder=make_decoder(trainer.model), # type: ignore
