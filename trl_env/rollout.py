@@ -1,12 +1,17 @@
 from __future__ import annotations
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-import threading
-from typing import Callable, Protocol
+from typing import Any, Callable
+
+from transformers import PreTrainedModel
 
 from .environment import Env, Seed
-from .engine import Engine
+from .decoder import RolloutDecoder
 from .processor import Processor
+from .tokenizer import Tokenizer
+
+from trl.trainer.grpo_trainer import RolloutFunc, GRPOTrainer, RewardFunc
+
+
 
 @dataclass
 class RolloutState:
@@ -41,93 +46,97 @@ def init_rollout_state(initial_prompt_ids: list[int]) -> RolloutState:
         reward=None,
     )
 
-def batch_rollout(
-    engine: Engine, processor: Processor, env_factory: Callable[[], Env],
+def rollout(
+    processor: Processor, tokenizer: Tokenizer,
+    decoder: RolloutDecoder, env: Env,
     system_prompt: str, max_conversation_length: int,
-    seed_list: list[Seed], 
-    conversation_logger: Callable[[int, str, str], None] | None = None,
-) -> list[RolloutState]:
-    _log_lock = threading.Lock()
-    def LOG(i: int, role: str, content: str):
+    seed: Seed, 
+    conversation_logger: Callable[[str, str], None] | None = None,
+) -> RolloutState:
+    def LOG(role: str, content: str):
         if conversation_logger is not None:
-            with _log_lock:
-                conversation_logger(i, role, content)
+            conversation_logger(role, content)
 
-    system_prompt_ids = engine.tokenizer_encode(processor.init_system_input(system_prompt))
-    
-    env_list: list[Env] = []
-    state_list: list[RolloutState] = []
-    for i, seed in enumerate(seed_list):
-        env, initial_delta = env_factory().reset(seed)
+    env, initial_delta = env.reset(seed)
 
-        LOG(i, "system", system_prompt)
-        LOG(i, "user", initial_delta)
+    LOG("system", system_prompt)
+    LOG("user", initial_delta)
+    # assuming tokenizer is additive
+    # tok(a ++ b) = tok(a) ++ tok(b)
+    system_prompt_ids = tokenizer.encode(processor.init_system_input(system_prompt))
+    initial_prompt_ids = system_prompt_ids + tokenizer.encode(processor.append_user_input(initial_delta))
 
+    state = init_rollout_state(initial_prompt_ids=initial_prompt_ids)
+
+    while True:
+        # precheck env.alive
+        if not env.alive:
+            break
+        # model generate
+        completion_ids, logprobs = decoder.generate(state.conversation)
+        # append agent completion
+        state = state.append_completion(
+            completion_ids=completion_ids,
+            logprobs=logprobs,
+        )
+        # parse (reason, action)
+        completion_text = tokenizer.decode(completion_ids)
+        LOG("assistant", completion_text)
+        reason, action = processor.parse_agent_output(completion_text)
+        # interact with environment
+        env, delta = env.step(action)
+        LOG("user", delta)
+        # save reward
+        state.reward = env.reward
+        # postcheck env.alive
+        if not env.alive:
+            LOG("log", "env terminated")
+            break
+        # append environment completion
         # assuming tokenizer is additive
         # tok(a ++ b) = tok(a) ++ tok(b)
-        initial_prompt_ids = system_prompt_ids + engine.tokenizer_encode(processor.append_user_input(initial_delta))
-
-        state = init_rollout_state(initial_prompt_ids=initial_prompt_ids)
-
-        env_list.append(env)
-        state_list.append(state)
-
-    with ThreadPoolExecutor(max_workers=len(env_list)) as executor:
-        # while some environment is still not termininate
-        while sum([env.alive for env in env_list]) > 0:
-            # MODEL BATCH GENERATE
-            # NOTE - consider giving `past_key_values`
-            # i.e. give the model the last hidden states so that it won't recalculate everything from the beginning
-            completion_ids_list, logprobs_list = engine.model_batch_generate([state.conversation for state in state_list])
-
-            # PROCESS GENERATE
-            def process_generate(i: int, env: Env, state: RolloutState, completion_ids: list[int], logprobs: list[float]) -> tuple[int, Env, RolloutState]:
-                # precheck env.alive
-                if not env.alive:
-                    return i, env, state
-                # append agent completion
-                state = state.append_completion(
-                    completion_ids=completion_ids,
-                    logprobs=logprobs,
-                )
-                # parse (reason, action)
-                completion_text = engine.tokenizer_decode(completion_ids)
-                LOG(i, "assistant", completion_text)
-                reason, action = processor.parse_agent_output(completion_text)
-                # interact with environment
-                env, delta = env.step(action)
-                LOG(i, "user", delta)
-                # save reward
-                state.reward = env.reward
-                # postcheck env.alive
-                if not env.alive:
-                    LOG(i, "log", "env terminated")
-                    return i, env, state
-                # append environment completion
-                # assuming tokenizer is additive
-                # tok(a ++ b) = tok(a) ++ tok(b)
-                delta_ids = engine.tokenizer_encode(processor.append_user_input(delta))
-                state = state.append_completion(
-                    completion_ids=delta_ids,
-                    logprobs=None,
-                )
-                # terminate env if conversation is long
-                if len(state.conversation) >= max_conversation_length:
-                    env.alive = False
-                    LOG(i, "log", "env terminated due to long conversation")
-                
-                return i, env, state
+        delta_ids = tokenizer.encode(processor.append_user_input(delta))
+        state = state.append_completion(
+            completion_ids=delta_ids,
+            logprobs=None,
+        )
+        # terminate env if conversation is long
+        if len(state.conversation) >= max_conversation_length:
+            env.alive = False
+            LOG("log", "env terminated due to long conversation")
+            break
+    return state
 
 
-            # BATCH PROCESS GENERATE
-            # NOTE - we wish to use multiprocess here, but it might interfere with torch/accelerate
-            output_iter = executor.map(lambda xs: process_generate(*xs), zip(
-                range(len(env_list)),
-                env_list, state_list,
-                completion_ids_list, logprobs_list,
-            ))
-            for i, env, state in output_iter:
-                env_list[i] = env
-                state_list[i] = state
-        
-        return state_list
+def make_rollout_func(
+    processor: Processor, tokenizer: Tokenizer,
+    make_decoder: Callable[[PreTrainedModel], RolloutDecoder],
+    env_factory: Callable[[], Env],    
+    system_prompt: str, max_conversation_length: int,
+) -> RolloutFunc:
+    def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
+        state_list = []
+        for prompt in prompts:
+            state = rollout(
+                processor=processor, tokenizer=tokenizer,
+                decoder=make_decoder(trainer.model), # type: ignore
+                env=env_factory(),
+                system_prompt=system_prompt, max_conversation_length=max_conversation_length,
+                seed=prompt,
+            )
+            state_list.append(state)
+
+        return {
+            "prompt_ids": [state.conversation[:state.initial_length] for state in state_list],
+            "completion_ids": [state.conversation[state.initial_length:] for state in state_list],
+            "env_mask": [state.env_mask for state in state_list],
+            "logprobs": [state.logprobs for state in state_list],
+            "reward": [state.reward for state in state_list],
+        }
+
+    return rollout_func
+
+def make_reward_func() -> RewardFunc:
+    def reward_func(prompts: list[str], completions: list[str], reward: list[float], **kwargs) -> list[float]:
+            return reward
+    return reward_func # type: ignore

@@ -4,7 +4,7 @@ from typing import Iterable, Iterator
 import torch
 from torch import Tensor
 from jaxtyping import Float, Int
-from trl_env.v2.generate import ModelFunc, SampleFunc, StreamGenerationIteration, Token, Logits, TokenList, stream_generate
+from .generate import ModelFunc, SampleFunc, StreamGenerationIteration, Token, Logits, TokenList, stream_generate
 
 
 def make_sample_func(temperature: float = 0.0) -> SampleFunc:
@@ -49,8 +49,8 @@ def make_model_func(model: PreTrainedModel) -> ModelFunc[Cache | None]:
 if __name__ == "__main__":
     from transformers import AutoTokenizer, AutoModelForCausalLM
 
-    from trl_env.v2.tokenizer import TransformerTokenizer
-    from trl_env.v2.processor import *
+    from .tokenizer import TransformerTokenizer
+    from .processor import *
 
     device = "mps"
     model_path = "Qwen/Qwen3.5-0.8B"

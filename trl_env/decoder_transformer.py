@@ -4,9 +4,9 @@ from jaxtyping import Float
 import torch
 from transformers import Cache, PreTrainedModel
 
-from trl_env.v2.generate import StreamGenerationIteration, Token, stream_generate
-from trl_env.v2.decoder import RolloutDecoder
-from trl_env.v2.generate_transformer import make_model_func, make_sample_func
+from .generate import StreamGenerationIteration, Token, stream_generate
+from .decoder import RolloutDecoder
+from .generate_transformer import make_model_func, make_sample_func
 
 class TransformerRolloutDecoder(RolloutDecoder):
     def __init__(self,

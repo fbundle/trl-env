@@ -2,58 +2,61 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from trl_env.rollout import batch_rollout
-from trl_env.rollout_transformer import TransformerEngine
+from trl_env.decoder_transformer import TransformerRolloutDecoder
+from trl_env.rollout import rollout
 from trl_env.processor import qwen3_instruct_processor
 
 from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST, DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
+from trl_env.tokenizer import TransformerTokenizer
 
 
-def logger(i: int, role: str, content: str):
+def logger(role: str, content: str):
     print(f"{role}> {content}")
 
 def main():
     model_path = "Qwen/Qwen3.5-0.8B"
     processor = qwen3_instruct_processor
 
-    max_turn_length = 512
+    max_turn_length = 1024
     max_conversation_length = 4096
 
-    engine = TransformerEngine(
-        tokenizer=AutoTokenizer.from_pretrained(model_path),
-        generation_kwargs=dict(
-            temperature=0.6,
-            max_new_tokens=max_turn_length,
-        )
+    t = AutoTokenizer.from_pretrained(model_path)
+
+    tokenizer = TransformerTokenizer(t)
+
+    eos_token_set = {t.eos_token_id}
+    eos_token_set.update([tokenizer.encode(eos_token)[0] for eos_token in EXTRA_EOS_TOKEN_LIST])
+
+    decoder = TransformerRolloutDecoder(
+        model=AutoModelForCausalLM.from_pretrained( # type: ignore
+            model_path,
+            dtype=torch.bfloat16,
+            device_map="auto",
+        ).eval(), 
+        temperature=0.6,
+        eos_token_set=eos_token_set,
+        max_completion_length=max_turn_length,
     )
-    engine.update_weights(AutoModelForCausalLM.from_pretrained(
-        model_path,
-        dtype=torch.bfloat16,
-        device_map="auto",
-    ).eval())
-
-    for eos_token in EXTRA_EOS_TOKEN_LIST:
-        eos_token_ids = engine.tokenizer_encode(eos_token)
-        assert len(eos_token_ids) == 1
-        engine.generation_kwargs["eos_token_id"].append(eos_token_ids[0])
-
 
     system_prompt = SYSTEM_PROMPT.format(
         max_turn_length=max_turn_length,
         max_conversation_length=max_conversation_length,
     )
 
-    with torch.no_grad():
-        o = batch_rollout(
-            engine=engine, processor=processor,
-            env_factory=lambda : DiscreteLogarithmEnv(), seed_list=[DiscreteLogarithmSeed(
-                g=2, h=3, p=5,
-            ).model_dump_json()],
-            system_prompt=system_prompt,
-            max_conversation_length=max_conversation_length,
-            conversation_logger=logger,
-        )
-        print(o[0].reward)
+    rollout(
+        processor=processor,
+        tokenizer=tokenizer,
+        decoder=decoder,
+        env=DiscreteLogarithmEnv(),
+        seed=DiscreteLogarithmSeed(
+            g=2, h=3, p=5,
+        ).model_dump_json(),
+        system_prompt=system_prompt,
+        max_conversation_length=max_conversation_length,
+        conversation_logger=logger,
+    )
+
+
 
 if __name__ == "__main__":
     main()

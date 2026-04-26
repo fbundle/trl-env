@@ -18,15 +18,15 @@ from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_
 from experiment.examples.trl_trainer_util.dataset import LazyDataset
 from experiment.examples.trl_trainer_util.trainer_callback import TimeBasedLogSaveCallback
 
-from trl_env.v2.decoder_transformer import TransformerRolloutDecoder
-from trl_env.v2.processor import qwen3_instruct_processor
+from trl_env.decoder_transformer import TransformerRolloutDecoder
+from trl_env.processor import qwen3_instruct_processor
 
 
 from trl.trainer.grpo_trainer import GRPOTrainer
 from trl.trainer.grpo_config import GRPOConfig
 
-from trl_env.v2.rollout import make_reward_func, make_rollout_func
-from trl_env.v2.tokenizer import TransformerTokenizer
+from trl_env.rollout import make_reward_func, make_rollout_func
+from trl_env.tokenizer import TransformerTokenizer
 
 def load_model_and_tokenizer(model_path: str):
     has_cuda = torch.cuda.is_available()
