@@ -61,7 +61,7 @@ def main(recipe_file: str):
 
     recipe_module = get_module_path(recipe_file)
     recipe_name = recipe_module.split(".")[-1]
-    uuid = must_get_env("UUID", "debug")
+    uuid = must_get_env("UUID", pbs_limit.replace("=", "").replace(":", ""))
     job_name = f"{recipe_name}_{uuid}"
 
     
