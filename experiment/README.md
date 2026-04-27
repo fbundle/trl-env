@@ -1,23 +1,13 @@
 # EXPERIMENT
 
-## INSTALL FLASH ATTENTION 
-
-- Flash Attention is not cross platform, hence need to use `uv pip`
+## INSTALL PLATFORM DEPENDENT PACKAGES
 
 ```shell
 uv pip install flash-attn --no-build-isolation
-uv pip install vllm --torch-backend=auto
+uv pip install vllm --torch-backend=cuda
 ```
 
-## INSTALL VLLM
-
-- linux
-
-```shell
-uv pip install vllm --torch-backend=auto
-```
-
-- macos
+## INSTALL VLLM FOR MACOS
 
 ```shell
 git clone https://github.com/vllm-project/vllm.git
