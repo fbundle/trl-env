@@ -1,114 +1,62 @@
 import torch
-from torch import Tensor
-from transformers import AutoModelForCausalLM, AutoTokenizer, BatchEncoding
-from transformers.modeling_outputs import CausalLMOutputWithPast
-from jaxtyping import Float, Int
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-def collapse_eos_token_id(completion_ids: list[int], eos_token_id: int) ->  list[int]:
-    try:
-        n = completion_ids.index(eos_token_id)
-    except ValueError:
-        n = len(completion_ids) - 1
-    
-    # eos_token found
-    # [tok, tok, eos, eos, eos] -> [tok, tok, eos]
-    return completion_ids[:n+1]
+model_path = "Qwen/Qwen3.5-0.8B"
 
-device = torch.device("mps")
+has_cuda = torch.cuda.is_available()
 
-model_id = "Qwen/Qwen3.5-0.8B"
-tokenizer = AutoTokenizer.from_pretrained(model_id)
-model = AutoModelForCausalLM.from_pretrained(model_id).to(device).eval() # type: ignore
-
-tokenizer.padding_side = 'left'
-tokenizer.pad_token_id = tokenizer.eos_token_id
-
-
-def apply_chat_template(text: str) -> str:
-    return tokenizer.apply_chat_template( # type: ignore
-        [{"role": "user", "content": text}],
-        tokenize=False,
-        add_generation_prompt=True,
-        enable_thinking=False,
+# 1. LOAD TRAINING MODEL (PyTorch)
+if has_cuda:
+    training_model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        dtype=torch.bfloat16,
+        device_map="auto",
     )
+else:
+    training_model = AutoModelForCausalLM.from_pretrained(model_path)
 
-def get_last_token(completion_ids: list[int]) -> int | None:
-    if len(completion_ids) >= 1:
-        return completion_ids[-1]
-    else:
-        return None
+from vllm import LLM, SamplingParams
 
-
-def early_stop(completion_ids_list: list[list[int]]) -> bool:
-    for completion_ids in completion_ids_list:
-        token = get_last_token(completion_ids)
-        if token != tokenizer.eos_token_id:
-            return False
-    return True
-
-temperature = 0.6
-
-input_text_list = [
-    "hello, this is an example",
-    "water is blue"
-]
-
-max_completion_length = 256
-batch_size = len(input_text_list)
-
-input_text_list: list[str] = [apply_chat_template(text) for text in input_text_list]
-print(input_text_list)
-input_ids_list = [tokenizer(text).input_ids for text in input_text_list]
-e: BatchEncoding = tokenizer.pad(
-    {"input_ids": input_ids_list},
-    padding=True,
-    # return_tensors="pt",
+# 2. LOAD VLLM ENGINE
+llm = LLM(
+    model=model_path,
+    dtype="bfloat16",
+    gpu_memory_utilization=0.4,
+    enable_prefix_caching=True,
 )
 
-completion_ids_list: list[list[int]] = [[] for _ in range(batch_size)]
+# 3. GENERATE WITH LOGPROBS
+sampling_params = SamplingParams(
+    temperature=1.0,
+    max_tokens=512,
+    logprobs=1,
+)
 
-input_ids: list[list[int]] = e.input_ids
-attention_mask: list[list[int]] = e.attention_mask
+outputs = llm.generate(["Find x such that 2^x = 3 (mod 5)"], sampling_params)
+for output in outputs:
+    tokens = output.outputs[0].token_ids
+    logprobs = [list(lp.values())[0].logprob for lp in output.outputs[0].logprobs]
+    print(tokens, logprobs)
 
-with torch.no_grad():
-    past_key_values = None
-    for _ in range(max_completion_length):
+# 4. UPDATE WEIGHTS
+def sync_weights(llm, training_model):
+    named_params = {name: param.data for name, param in training_model.named_parameters()}
+    llm.collective_rpc(
+        "update_weights_from_dict",
+        kwargs=dict(named_params=named_params),
+    )
 
-        if early_stop(completion_ids_list):
-            break
+sync_weights(llm, training_model)
 
-        o: CausalLMOutputWithPast = model(
-            output_logits=True,
-            return_dict_in_generate=True,
-            use_cache=True,
-            past_key_values=past_key_values,
-            input_ids=torch.tensor(input_ids).to(device),
-            attention_mask=torch.tensor(attention_mask).to(device),
-        )
-
-        past_key_values = o.past_key_values
-        
-        assert o.logits is not None
-        logits: Float[Tensor, "b d"] = o.logits[:, -1, :]
-
-        # probs = torch.softmax(logits / temperature, dim=-1)
-        # completion = torch.multinomial(probs, num_samples=1).squeeze(-1)
-
-        completion: Int[Tensor, "b"] = torch.argmax(logits, dim=-1)
-
-        for i, token in enumerate(completion.tolist()):
-            if get_last_token(completion_ids_list[i]) == tokenizer.eos_token_id:
-                input_ids[i] = [tokenizer.eos_token_id]
-                attention_mask[i].append(0)
-            else:
-                completion_ids_list[i].append(token)
-                input_ids[i] = [token]
-                attention_mask[i].append(1)
-
-
-completion_text = [tokenizer.decode(completion_ids) for completion_ids in completion_ids_list]
-
-
-print(completion_text)
-
-import pdb; pdb.set_trace()
+# 5. GENERATE AGAIN - prefix cache preserved from step 3
+prompts = [
+    "Find x such that 2^x = 3 (mod 5)",
+    "Find x such that 2^x = 5 (mod 7)",
+    "Find x such that 2^x = 1 (mod 11)",
+]
+outputs = llm.generate(prompts, sampling_params)
+for o in outputs:
+    tokens = o.outputs[0].token_ids
+    logprobs = [list(lp.values())[0].logprob for lp in o.outputs[0].logprobs]
+    print(o.outputs[0].text)
+    print(logprobs)
