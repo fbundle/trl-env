@@ -2,7 +2,19 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from vllm import LLM, SamplingParams
 
+# Remap UUID-style CUDA_VISIBLE_DEVICES to integer indices
+# vLLM's platform code can't handle UUID format
+cvd = os.environ.get("CUDA_VISIBLE_DEVICES", "")
+if cvd and not cvd.replace(",", "").isdigit():
+    # UUIDs present — remap to 0,1,2,...
+    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
+        str(i) for i in range(len(cvd.split(",")))
+    )
+
+
 model_path = "Qwen/Qwen3.5-0.8B"
+
+
 
 # 1. LOAD TRAINING MODEL (PyTorch)
 
