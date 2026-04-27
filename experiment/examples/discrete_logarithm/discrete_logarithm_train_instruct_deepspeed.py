@@ -52,12 +52,6 @@ def load_model_and_tokenizer(model_path: str):
         attn_implementation=attn_implementation,
     )
 
-    model = AutoModelForCausalLM.from_pretrained(
-        model_path,
-        dtype=torch.bfloat16,
-        device_map="auto",
-        attn_implementation=attn_implementation,
-    )
     lora_config = LoraConfig(
         r=8,
         lora_alpha=16,
