@@ -15,7 +15,6 @@ dependencies = [
     "mpi4py",
     "bitsandbytes",
     "mpi4py",
-    "vllm",
 ]
 
 [tool.uv.sources]
