@@ -6,6 +6,7 @@
 
 ```shell
 uv pip install flash-attn --no-build-isolation
+uv pip install vllm --torch-backend=auto
 ```
 
 ## INSTALL VLLM
