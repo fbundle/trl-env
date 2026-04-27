@@ -1,114 +1,170 @@
+"""
+Standalone example: continuous batching (paged attention) generation with Transformers.
+
+This mirrors what GRPOTrainer does in the `use_transformers_paged` branch of
+`_generate_single_turn`, but stripped down so the mechanics are easy to follow.
+
+Requirements:
+    pip install transformers>=4.46.0 torch accelerate
+
+Key difference from standard generate():
+    - Standard path:   left-pad all prompts into a single (B, T) tensor, pass to model.generate()
+    - Paged path:      pass a list of variable-length token ID lists to model.generate_batch(),
+                       which uses continuous batching internally — no manual padding needed.
+"""
+
 import torch
-from torch import Tensor
-from transformers import AutoModelForCausalLM, AutoTokenizer, BatchEncoding
-from transformers.modeling_outputs import CausalLMOutputWithPast
-from jaxtyping import Float, Int
-
-def collapse_eos_token_id(completion_ids: list[int], eos_token_id: int) ->  list[int]:
-    try:
-        n = completion_ids.index(eos_token_id)
-    except ValueError:
-        n = len(completion_ids) - 1
-    
-    # eos_token found
-    # [tok, tok, eos, eos, eos] -> [tok, tok, eos]
-    return completion_ids[:n+1]
-
-device = torch.device("mps")
-
-model_id = "Qwen/Qwen3.5-0.8B"
-tokenizer = AutoTokenizer.from_pretrained(model_id)
-model = AutoModelForCausalLM.from_pretrained(model_id).to(device).eval() # type: ignore
-
-tokenizer.padding_side = 'left'
-tokenizer.pad_token_id = tokenizer.eos_token_id
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
 
 
-def apply_chat_template(text: str) -> str:
-    return tokenizer.apply_chat_template( # type: ignore
-        [{"role": "user", "content": text}],
-        tokenize=False,
-        add_generation_prompt=True,
-        enable_thinking=False,
-    )
+# ---------------------------------------------------------------------------
+# 1. Load model and tokenizer
+# ---------------------------------------------------------------------------
 
-def get_last_token(completion_ids: list[int]) -> int | None:
-    if len(completion_ids) >= 1:
-        return completion_ids[-1]
-    else:
-        return None
+MODEL_ID = "Qwen/Qwen3-0.6B"  # swap for any causal LM
+
+tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, padding_side="left")
+if tokenizer.pad_token is None:
+    tokenizer.pad_token = tokenizer.eos_token
+
+model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype=torch.bfloat16)
+model.eval()
+
+device = "cpu"
+model = model.to(device)
 
 
-def early_stop(completion_ids_list: list[list[int]]) -> bool:
-    for completion_ids in completion_ids_list:
-        token = get_last_token(completion_ids)
-        if token != tokenizer.eos_token_id:
-            return False
-    return True
+# ---------------------------------------------------------------------------
+# 2. Prepare prompts — intentionally variable length to show the advantage
+# ---------------------------------------------------------------------------
 
-temperature = 0.6
-
-input_text_list = [
-    "hello, this is an example",
-    "water is blue"
+raw_prompts = [
+    "Explain what a transformer model is in one sentence.",
+    "What is 2 + 2?",
+    "Write a haiku about the ocean.",
+    "Summarize the plot of Romeo and Juliet in two sentences.",
 ]
 
-max_completion_length = 256
-batch_size = len(input_text_list)
+# Apply chat template (returns list of strings)
+templated = [
+    tokenizer.apply_chat_template(
+        [{"role": "user", "content": p}],
+        tokenize=False,
+        add_generation_prompt=True,
+    )
+    for p in raw_prompts
+]
 
-input_text_list: list[str] = [apply_chat_template(text) for text in input_text_list]
-print(input_text_list)
-input_ids_list = [tokenizer(text).input_ids for text in input_text_list]
-e: BatchEncoding = tokenizer.pad(
-    {"input_ids": input_ids_list},
-    padding=True,
-    # return_tensors="pt",
+# Tokenize WITHOUT padding — each element is a plain list of ints.
+# This is the key difference: generate_batch accepts ragged sequences.
+prompt_ids: list[list[int]] = tokenizer(templated)["input_ids"]
+
+print("Prompt lengths (no padding applied):")
+for i, ids in enumerate(prompt_ids):
+    print(f"  prompt {i}: {len(ids)} tokens")
+
+
+# ---------------------------------------------------------------------------
+# 3. Build a GenerationConfig
+#    (same object GRPOTrainer passes to generate_batch)
+# ---------------------------------------------------------------------------
+
+generation_config = GenerationConfig(
+    max_new_tokens=128,
+    do_sample=True,
+    temperature=0.7,
+    top_p=0.9,
+    pad_token_id=tokenizer.pad_token_id,
+    eos_token_id=tokenizer.eos_token_id,
+    disable_compile=True,   # avoids recompilation overhead in training loops
 )
 
-completion_ids_list: list[list[int]] = [[] for _ in range(batch_size)]
 
-input_ids: list[list[int]] = e.input_ids
-attention_mask: list[list[int]] = e.attention_mask
+# ---------------------------------------------------------------------------
+# 4. Standard generate() path — for comparison
+#    Requires explicit left-padding into a (B, T) tensor.
+# ---------------------------------------------------------------------------
 
-with torch.no_grad():
-    past_key_values = None
-    for _ in range(max_completion_length):
+def standard_generate(model, tokenizer, prompt_ids, generation_config, device):
+    max_len = max(len(ids) for ids in prompt_ids)
+    pad_id = tokenizer.pad_token_id
 
-        if early_stop(completion_ids_list):
-            break
+    # Left-pad manually
+    input_ids = torch.tensor(
+        [[pad_id] * (max_len - len(ids)) + ids for ids in prompt_ids],
+        device=device,
+    )
+    attention_mask = torch.tensor(
+        [[0] * (max_len - len(ids)) + [1] * len(ids) for ids in prompt_ids],
+        device=device,
+    )
 
-        o: CausalLMOutputWithPast = model(
-            output_logits=True,
-            return_dict_in_generate=True,
-            use_cache=True,
-            past_key_values=past_key_values,
-            input_ids=torch.tensor(input_ids).to(device),
-            attention_mask=torch.tensor(attention_mask).to(device),
+    with torch.no_grad():
+        output_ids = model.generate(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            generation_config=generation_config,
         )
 
-        past_key_values = o.past_key_values
-        
-        assert o.logits is not None
-        logits: Float[Tensor, "b d"] = o.logits[:, -1, :]
-
-        # probs = torch.softmax(logits / temperature, dim=-1)
-        # completion = torch.multinomial(probs, num_samples=1).squeeze(-1)
-
-        completion: Int[Tensor, "b"] = torch.argmax(logits, dim=-1)
-
-        for i, token in enumerate(completion.tolist()):
-            if get_last_token(completion_ids_list[i]) == tokenizer.eos_token_id:
-                input_ids[i] = [tokenizer.eos_token_id]
-                attention_mask[i].append(0)
-            else:
-                completion_ids_list[i].append(token)
-                input_ids[i] = [token]
-                attention_mask[i].append(1)
+    # Slice off the prompt tokens to get only the completion
+    completions = [
+        output[max_len:].tolist()
+        for output in output_ids
+    ]
+    return completions
 
 
-completion_text = [tokenizer.decode(completion_ids) for completion_ids in completion_ids_list]
+# ---------------------------------------------------------------------------
+# 5. Paged / continuous-batching path — generate_batch()
+#    Accepts ragged list[list[int]] directly; no padding tensor needed.
+# ---------------------------------------------------------------------------
+
+def paged_generate(model, prompt_ids, generation_config):
+    with torch.no_grad():
+        # generate_batch() forces eval mode internally; restore after if needed.
+        all_outputs = model.generate_batch(
+            prompt_ids,
+            generation_config=generation_config,
+            progress_bar=False,
+        )
+        model.train()  # restore train mode (mirrors GRPOTrainer behaviour)
+
+    # all_outputs is a dict keyed by sequence index; .generated_tokens holds
+    # only the new tokens (prompt tokens are NOT included — no slicing needed).
+    completion_ids: list[list[int]] = [
+        all_outputs[i].generated_tokens for i in range(len(prompt_ids))
+    ]
+    return completion_ids
 
 
-print(completion_text)
+# ---------------------------------------------------------------------------
+# 6. Run both and decode
+# ---------------------------------------------------------------------------
 
-import pdb; pdb.set_trace()
+print("\n--- Standard generate() ---")
+std_completions = standard_generate(model, tokenizer, prompt_ids, generation_config, device)
+for i, ids in enumerate(std_completions):
+    text = tokenizer.decode(ids, skip_special_tokens=True)
+    print(f"[{i}] {text}\n")
+
+print("\n--- generate_batch() (continuous batching) ---")
+paged_completions = paged_generate(model, prompt_ids, generation_config)
+for i, ids in enumerate(paged_completions):
+    text = tokenizer.decode(ids, skip_special_tokens=True)
+    print(f"[{i}] {text}\n")
+
+
+# ---------------------------------------------------------------------------
+# 7. Notes on what generate_batch does NOT return (vs vLLM)
+# ---------------------------------------------------------------------------
+#
+# generate_batch() returns an object with `.generated_tokens` (the new token
+# IDs) but does NOT expose per-token log-probabilities. This is why:
+#
+#   logprobs = None   # in GRPOTrainer's paged branch
+#
+# Consequence: vLLM importance-sampling correction cannot be used with this
+# backend, because there are no sampling logprobs to compare against the
+# training model's logprobs.
+#
+# If you need logprobs for off-policy correction, use vLLM instead.
