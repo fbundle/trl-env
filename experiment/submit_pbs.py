@@ -32,6 +32,7 @@ export NCCL_ASYNC_ERROR_HANDLING=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 UV="$HOME/miniforge3/envs/test/bin/uv"
+$UV pip install flash-attn --no-build-isolation
 $UV run accelerate launch -m {recipe_module} train {uuid} |& tee log/run_{job_name}.log
 """
 

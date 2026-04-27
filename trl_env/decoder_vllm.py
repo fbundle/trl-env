@@ -39,3 +39,4 @@ class VLLMRolloutDecoder(RolloutDecoder):
         tokens = o.outputs[0].token_ids
         logprobs = [list(lp.values())[0].logprob for lp in o.outputs[0].logprobs]
         return tokens, logprobs
+
