@@ -1,22 +1,16 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from vllm import LLM, SamplingParams
 
 model_path = "Qwen/Qwen3.5-0.8B"
 
-has_cuda = torch.cuda.is_available()
-
 # 1. LOAD TRAINING MODEL (PyTorch)
-if has_cuda:
-    training_model = AutoModelForCausalLM.from_pretrained(
-        model_path,
-        dtype=torch.bfloat16,
-        device_map="auto",
-    )
-else:
-    training_model = AutoModelForCausalLM.from_pretrained(model_path)
 
-from vllm import LLM, SamplingParams
-
+training_model = AutoModelForCausalLM.from_pretrained(
+    model_path,
+    dtype=torch.bfloat16,
+    device_map="auto",
+)
 # 2. LOAD VLLM ENGINE
 llm = LLM(
     model=model_path,
@@ -24,6 +18,7 @@ llm = LLM(
     gpu_memory_utilization=0.4,
     enable_prefix_caching=True,
 )
+
 
 # 3. GENERATE WITH LOGPROBS
 sampling_params = SamplingParams(
