@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+uv sync --all-packages
+uv pip install flash-attn==2.8.* --no-build-isolation
