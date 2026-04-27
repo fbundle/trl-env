@@ -82,6 +82,9 @@ class Decoder:
             next_token_queue=tokens,
             cache=DynamicCache(),
         )
+
+    def remove(self, key: str):
+        self.pool.pop(key)
     
     def generate(self, model: PreTrainedModel) -> dict[str, Output]:
         key_list = list(self.pool.keys())
