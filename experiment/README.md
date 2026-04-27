@@ -1,11 +1,12 @@
 # EXPERIMENT
 
-## INSTALL FLASH ATTENTION
+## INSTALL FLASH ATTENTION 
 
 - Flash Attention is not cross platform, hence need to use `uv pip`
 
 ```shell
-uv pip install flash-attn --no-build-isolation
+uv pip install flash-attn=2.8.* --no-build-isolation
+uv pip install bitsandbytes==0.49.*
 ```
 
 ## INSTALL SGLANG ON LINUX
