@@ -31,26 +31,29 @@ from trl_env.tokenizer import TransformerTokenizer
 from transformers import BitsAndBytesConfig
 
 def load_model_and_tokenizer(model_path: str):
-    has_cuda = torch.cuda.is_available()
-    if has_cuda:
-        attn_implementation = "flash_attention_2"
-    else:
-        attn_implementation = "sdpa"
-
     tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=model_path)
 
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_compute_dtype=torch.bfloat16,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-    )
-    model = AutoModelForCausalLM.from_pretrained(
-        model_path,
-        quantization_config=bnb_config,
-        device_map="auto",
-        attn_implementation=attn_implementation,
-    )
+    has_cuda = torch.cuda.is_available()
+    if has_cuda:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+        )
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            quantization_config=bnb_config,
+            device_map="auto",
+            attn_implementation="flash_attention_2",
+        )
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            dtype=torch.bfloat16,
+            device_map="auto",
+            attn_implementation="sdpa",
+        )
 
     lora_config = LoraConfig(
         r=8,
