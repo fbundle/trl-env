@@ -33,8 +33,7 @@ from transformers import BitsAndBytesConfig
 def load_model_and_tokenizer(model_path: str):
     tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=model_path)
 
-    has_cuda = torch.cuda.is_available()
-    if has_cuda:
+    if torch.cuda.is_available():
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_compute_dtype=torch.bfloat16,
@@ -86,7 +85,10 @@ def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
     model_path = "Qwen/Qwen3.5-4B"
     debug_model_path = "Qwen/Qwen3.5-0.8B"
 
-    deepspeed = "conf/ds_zero2.json"
+    if torch.cuda.is_available():
+        deepspeed = "conf/ds_zero2.json"
+    else:
+        deepspeed = None
     
     if mode == ModeDebug:
         model_path = debug_model_path
