@@ -28,6 +28,8 @@ from trl.trainer.grpo_config import GRPOConfig
 from trl_env.rollout import make_reward_func, make_rollout_func
 from trl_env.tokenizer import TransformerTokenizer
 
+from transformers import BitsAndBytesConfig
+
 def load_model_and_tokenizer(model_path: str):
     has_cuda = torch.cuda.is_available()
     if has_cuda:
@@ -36,6 +38,20 @@ def load_model_and_tokenizer(model_path: str):
         attn_implementation = "sdpa"
 
     tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=model_path)
+
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=torch.bfloat16,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+    )
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        quantization_config=bnb_config,
+        device_map="auto",
+        attn_implementation=attn_implementation,
+    )
+
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         dtype=torch.bfloat16,
@@ -117,7 +133,7 @@ def load_batch_information(mode: Mode):
     # alpha = 1 for flash attention
     effective_batch_size = 32
     per_device_batch_size = 1
-    num_generations = 16
+    num_generations = 8
     max_conversation_length = 8192
     max_turn_length = 2048
 
@@ -236,10 +252,6 @@ def main(mode: Mode, uuid: str):
         max_completion_length=max_conversation_length,  # for padding the output of rollout_func
         gradient_accumulation_steps=gradient_accumulation_steps,
 
-        # floating point precision
-        bf16=has_cuda or has_mps,
-        tf32=has_cuda,
-
         # no eval
         eval_strategy="no",
 
@@ -260,6 +272,12 @@ def main(mode: Mode, uuid: str):
         vllm_mode="colocate",
 
         gradient_checkpointing=True,
+
+        # floating point precision
+        bf16=has_cuda or has_mps,
+        tf32=has_cuda,
+        optim="adamw_bnb_8bit",
+
     )
 
     system_prompt = SYSTEM_PROMPT.format(max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
