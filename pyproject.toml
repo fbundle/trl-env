@@ -4,12 +4,11 @@ dynamic = ["version"]
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
-    "jaxtyping==0.3.*",
-    "torch==2.11.*",
-    "transformers==5.5.*",
-    "trl==1.2.*",
-    "mlx-lm==0.31.*; sys_platform == 'darwin'",
-    "mlx==0.31.*; sys_platform == 'darwin'",
+    "jaxtyping",
+    "torch",
+    "transformers",
+    "trl",
+    "vllm",
 ]
 
 
