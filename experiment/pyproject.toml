@@ -12,7 +12,8 @@ dependencies = [
     "tensorboard==2.20.*",
     "jiwer==4.0.*",
     "deepspeed==0.18.*",
-    "mpi4py>=4.1.1",
+    "mpi4py==4.1.*",
+    "vllm==0.1.*; sys_platform == 'linux'",
 ]
 
 [tool.uv.sources]
