@@ -19,6 +19,7 @@ class VLLMRolloutDecoder(RolloutDecoder):
             temperature=temperature,
             max_tokens=max_completion_length,
             logprobs=1,
+            stop_token_ids=list(eos_token_set),
         )
     
     def update_weights(self, training_model: PreTrainedModel):
