@@ -10,11 +10,11 @@ from .generate_transformer import make_model_func, make_sample_func
 
 class TransformerRolloutDecoder(RolloutDecoder):
     def __init__(self,
-    model: PreTrainedModel,
-    temperature: float,
-    eos_token_set: set[Token],
-    max_completion_length: int,
-) -> None:
+        model: PreTrainedModel,
+        temperature: float,
+        eos_token_set: set[Token],
+        max_completion_length: int,
+    ) -> None:
         self.model: PreTrainedModel = model
         self.cache: Cache | None = None
         self.last_length = 0
