@@ -8,6 +8,7 @@ dependencies = [
     "torch",
     "transformers",
     "trl",
+    "vllm; sys_platform == 'linux'",
 ]
 
 
