@@ -59,8 +59,8 @@ def load_model_and_tokenizer(model_path: str):
         attn_implementation=attn_implementation,
     )
     lora_config = LoraConfig(
-        r=16,
-        lora_alpha=32,
+        r=8,
+        lora_alpha=16,
         target_modules=[
             "q_proj",
             "k_proj",
