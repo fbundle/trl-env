@@ -1,5 +1,6 @@
 from .decoder import RolloutDecoder
 from vllm import LLM, RequestOutput, SamplingParams
+from vllm.config import CompilationConfig
 from transformers import PreTrainedModel
 
 class VLLMRolloutDecoder(RolloutDecoder):
@@ -14,6 +15,7 @@ class VLLMRolloutDecoder(RolloutDecoder):
             dtype="bfloat16",
             gpu_memory_utilization=0.2,
             enable_prefix_caching=True,
+            compilation_config=CompilationConfig(level=0),  # 0 = no compilation
         )
         self.sampling_params = SamplingParams(
             temperature=temperature,
