@@ -115,9 +115,6 @@ def make_rollout_func(
     system_prompt: str, max_conversation_length: int,
 ) -> RolloutFunc:
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
-        import pdb; pdb.set_trace()
-
-
         state_list = []
         for prompt in prompts:
             # TODO - currently we only do batch_size=1
