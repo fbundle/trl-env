@@ -177,7 +177,8 @@ def split_decoder(ctx, n: int) -> tuple[mp.Queue, list[ChildDecoder]]:
     return qi, child_decoder_list
 
 def rollout_then_close_decoder(args):
-    qs, processor, tokenizer, decoder, env, system_prompt, max_conversation_length, seed = args
+    qs, processor, tokenizer, decoder, env_factory, system_prompt, max_conversation_length, seed = args
+    env = env_factory()
     state, error = None, None
     try:
         state = rollout(
@@ -213,13 +214,13 @@ def make_rollout_func_mp(
 
         child_list = []
         for index, seed in enumerate(prompts):
-            p = ctx.Process(target=rollout_then_close_decoder, args=[
+            p = ctx.Process(target=rollout_then_close_decoder, args=[(
                 qs,
                 processor, tokenizer,
-                child_decoder_list[index], env_factory(),
+                child_decoder_list[index], env_factory,
                 system_prompt, max_conversation_length,
                 seed,
-            ])
+            )])
             p.start()
             child_list.append(p)
         
