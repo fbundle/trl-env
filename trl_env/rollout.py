@@ -138,6 +138,10 @@ def make_rollout_func(
 
     return rollout_func
 
+def make_reward_func() -> RewardFunc:
+    def reward_func(prompts: list[str], completions: list[str], reward: list[float], **kwargs) -> list[float]:
+            return reward
+    return reward_func # type: ignore
 
 import multiprocessing as mp
 
@@ -255,8 +259,3 @@ def make_rollout_func_mp(
         }
 
     return rollout_func
-
-def make_reward_func() -> RewardFunc:
-    def reward_func(prompts: list[str], completions: list[str], reward: list[float], **kwargs) -> list[float]:
-            return reward
-    return reward_func # type: ignore
