@@ -49,10 +49,13 @@ class VLLMRolloutDecoder(RolloutDecoder):
         self.vllm.sync_weights()
 
     def generate(self, input_ids: list[int]) -> tuple[list[int], list[float]]:
-        return self.vllm.generate(
+        prompt_ids, completion_ids, logprobs, logprob_token_ids = self.vllm.generate(
             prompts=[input_ids], num_generations=1,
             images=None,
         )
+
+        return completion_ids[0], logprobs[0]
+
 
 if __name__ == "__main__":
     from typing import Iterable
