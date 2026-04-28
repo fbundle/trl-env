@@ -141,6 +141,7 @@ def split_decoder(n: int) -> tuple[mp.Queue, list[ChildDecoder]]:
 
 def rollout_then_close_decoder(args):
     qs, processor, tokenizer, decoder, env, system_prompt, max_conversation_length, seed = args
+    state, error = None, None
     try:
         state = rollout(
             processor=processor, tokenizer=tokenizer,
