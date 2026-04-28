@@ -21,7 +21,7 @@ class VLLMRolloutDecoder(RolloutDecoder):
         self.temperature = temperature
         self.eos_token_set = eos_token_set
         self.max_completion_length = max_completion_length
-        self.vllm = None
+        self.vllm: VLLMGeneration | None = None
     
     def init_vllm(self,
         accelerator: Accelerator,
@@ -46,9 +46,11 @@ class VLLMRolloutDecoder(RolloutDecoder):
         
 
     def sync_weights(self):
+        assert self.vllm is not None
         self.vllm.sync_weights()
 
     def generate(self, input_ids: list[int]) -> tuple[list[int], list[float]]:
+        assert self.vllm is not None
         prompt_ids, completion_ids, logprobs, logprob_token_ids = self.vllm.generate(
             prompts=[input_ids], num_generations=1,
             images=None,
@@ -92,7 +94,7 @@ if __name__ == "__main__":
     decoder.sync_weights()
 
     input_ids = tokenizer.encode(processor.append_user_input("the cat is lying on the rooftop"))
-    prompt_ids, completion_ids, logprobs, logprob_token_ids = decoder.generate(input_ids)
+    o = decoder.generate(input_ids)
 
     import pdb; pdb.set_trace()
 
