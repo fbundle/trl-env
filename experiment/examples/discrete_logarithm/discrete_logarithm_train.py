@@ -17,7 +17,8 @@ from experiment.examples.trl_trainer_util.trainer_callback import TimeBasedLogSa
 from trl.trainer.grpo_trainer import GRPOTrainer
 from trl.trainer.grpo_config import GRPOConfig
 
-from trl_env.rollout import make_reward_func, make_rollout_func
+# from trl_env.rollout import make_reward_func, make_rollout_func
+from trl_env.rollout_mp import make_reward_func, make_rollout_func_mp as make_rollout_func
 from trl_env.tokenizer import TransformerTokenizer
 
 from transformers import BitsAndBytesConfig
