@@ -106,6 +106,39 @@ def rollout(
     return state
 
 from tqdm import tqdm
+
+def make_rollout_func(
+    processor: Processor, tokenizer: Tokenizer,
+    decoder_factory: RolloutDecoderFactory,
+    env_factory: Callable[[], Env],    
+    system_prompt: str, max_conversation_length: int,
+) -> RolloutFunc:
+    def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
+        decoder = decoder_factory.make_decoder(trainer)
+        env = env_factory()
+
+        state_list = []
+        for prompt in tqdm(prompts, desc="rolling out ..."):
+            # TODO batch this - need to make decoder in batch as well
+            state = rollout(
+                processor=processor, tokenizer=tokenizer,
+                decoder=decoder, env=env,
+                system_prompt=system_prompt, max_conversation_length=max_conversation_length,
+                seed=prompt,
+            )
+            state_list.append(state)
+
+        return {
+            "prompt_ids": [state.conversation[:state.initial_length] for state in state_list],
+            "completion_ids": [state.conversation[state.initial_length:] for state in state_list],
+            "env_mask": [state.env_mask for state in state_list],
+            "logprobs": [state.logprobs for state in state_list],
+            "reward": [state.reward for state in state_list],
+        }
+
+    return rollout_func
+
+
 import multiprocessing as mp
 
 class ChildDecoder(RolloutDecoder):
@@ -160,10 +193,8 @@ def rollout_then_close_decoder(args):
             "state": state,
             "error": error,
         })
-    
-    
 
-def make_rollout_func(
+def make_rollout_func_mp(
     processor: Processor, tokenizer: Tokenizer,
     decoder_factory: RolloutDecoderFactory,
     env_factory: Callable[[], Env],    
