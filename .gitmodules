@@ -1,0 +1,3 @@
+[submodule "vllm"]
+	path = vllm
+	url = https://github.com/vllm-project/vllm/releases/tag/v0.19.1
