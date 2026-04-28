@@ -84,7 +84,7 @@ def main(recipe_file: str):
 
     result = subprocess.run(["qsub", job_file])
     if result.returncode != 0:
-        raise RuntimeError(f"qsub failed with code {result.returncode}")
+        raise RuntimeError(f"qsub failed with code {result.returncode} result {result}")
 
 
 
