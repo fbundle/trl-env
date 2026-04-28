@@ -16,7 +16,6 @@ class VLLMRolloutDecoder(RolloutDecoder):
             gpu_memory_utilization=0.2,
             enable_prefix_caching=True,
             compilation_config=CompilationConfig(mode=0),  # 0 = no compilation
-            limit_mm_per_prompt={"image": 0, "video": 0},  # no multimodal inputs
         )
         self.sampling_params = SamplingParams(
             temperature=temperature,
@@ -26,11 +25,11 @@ class VLLMRolloutDecoder(RolloutDecoder):
         )
     
     def update_weights(self, training_model: PreTrainedModel):
-        named_params = {name: param.data for name, param in training_model.named_parameters()}
-        self.llm.collective_rpc(
-            "update_weights_from_dict",
-            kwargs=dict(named_params=named_params),
-        )
+        for name, param in training_model.named_parameters():
+            llm_model = self.llm.llm_engine.model_executor.driver_worker.model_runner.model
+            llm_model.load_weights([(name, param.data)])
+
+        self.llm.reset_prefix_cache()
 
     def generate(self, input_ids: list[int]) -> tuple[list[int], list[float]]:
         o_list: list[RequestOutput] = self.llm.generate(
