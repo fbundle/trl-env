@@ -10,13 +10,7 @@ from vllm import LLM, RequestOutput, SamplingParams
 from vllm.config import CompilationConfig
 from transformers import PreTrainedModel
 
-def is_peft_model(model):
-    from .other import extract_model_from_parallel
-
-    if is_peft_available():
-        from peft import PeftModel
-
-    return is_peft_available() and isinstance(extract_model_from_parallel(model), PeftModel)
+from accelerate.utils import is_peft_model
 
 
 class VLLMRolloutDecoder(RolloutDecoder):
