@@ -4,7 +4,7 @@
 
 ```shell
 uv pip install flash-attn --no-build-isolation
-uv pip install vllm --torch-backend=cu126
+uv pip install "vllm==0.8.5" --torch-backend=cu126
 ```
 
 ## INSTALL VLLM FOR MACOS
