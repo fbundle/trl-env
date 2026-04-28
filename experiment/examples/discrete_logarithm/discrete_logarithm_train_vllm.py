@@ -18,7 +18,7 @@ from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_
 from experiment.examples.trl_trainer_util.dataset import LazyDataset
 from experiment.examples.trl_trainer_util.trainer_callback import TimeBasedLogSaveCallback
 
-from trl_env.decoder_transformer import TransformerRolloutDecoder
+from trl_env.decoder_vllm import VLLMRolloutDecoder
 from trl_env.processor import qwen3_instruct_processor
 
 
@@ -106,7 +106,7 @@ def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
     eos_token_set = {t.eos_token_id}
     eos_token_set.update([tokenizer.encode(eos_token)[0] for eos_token in EXTRA_EOS_TOKEN_LIST])
 
-    make_decoder = lambda model: TransformerRolloutDecoder(
+    make_decoder = lambda _: TransformerRolloutDecoder(
         model=model, 
         temperature=1.0,
         eos_token_set=eos_token_set,
