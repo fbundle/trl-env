@@ -46,3 +46,21 @@ class Processor(Protocol):
 
 [TRL-ENV](https://github.com/fbundle/trl-env) provides a very simple example for training agentic LLM. See `experiment/examples`
 
+
+# INSTALLATION
+
+## INSTALL PLATFORM DEPENDENT PACKAGES
+
+```shell
+uv pip install flash-attn --no-build-isolation
+uv pip install vllm==0.19.1 --torch-backend=cu126
+```
+
+## INSTALL VLLM FOR MACOS
+
+```shell
+git clone https://github.com/vllm-project/vllm.git
+cd vllm
+uv pip install -r requirements/cpu.txt --index-strategy unsafe-best-match
+uv pip install -e .
+```
