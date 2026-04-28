@@ -46,7 +46,7 @@ def parse_action(action: str) -> ParsedAction:
             format_points=format_points,
         )
     return ParsedAction(
-        action_value=None,
+        action_type=None,
         format_points=0.0,
     )
 
