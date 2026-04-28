@@ -141,17 +141,26 @@ def split_decoder(n: int) -> tuple[mp.Queue, list[ChildDecoder]]:
 
 def rollout_then_close_decoder(args):
     qs, processor, tokenizer, decoder, env, system_prompt, max_conversation_length, seed = args
-    state = rollout(
-        processor=processor, tokenizer=tokenizer,
-        decoder=decoder, env=env,
-        system_prompt=system_prompt, max_conversation_length=max_conversation_length,
-        seed=seed,
-    )
-    decoder.close()
-    qs.put({
-        "index": decoder.index,
-        "state": state,
-    })
+    try:
+        state = rollout(
+            processor=processor, tokenizer=tokenizer,
+            decoder=decoder, env=env,
+            system_prompt=system_prompt, max_conversation_length=max_conversation_length,
+            seed=seed,
+        )
+        error = None
+    except Exception as e:
+        state = None
+        error = e
+    finally:
+        decoder.close()
+        qs.put({
+            "index": decoder.index,
+            "state": state,
+            "error": error,
+        })
+    
+    
 
 def make_rollout_func(
     processor: Processor, tokenizer: Tokenizer,
@@ -196,6 +205,9 @@ def make_rollout_func(
         indexed_state_list = []
         for _ in prompts:
             indexed_state = qs.get()
+            error = indexed_state["error"]
+            if error is not None:
+                raise error
             indexed_state_list.append(indexed_state)
         
         indexed_state_list.sort(key=lambda indexed_state: indexed_state["index"])
