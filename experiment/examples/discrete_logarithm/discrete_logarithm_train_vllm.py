@@ -292,6 +292,7 @@ def main(mode: Mode, uuid: str):
         make_decoder=make_decoder,
         system_prompt=system_prompt,
         max_conversation_length=max_conversation_length,
+        num_generations=num_generations,
     )
     reward_func = make_reward_func()
 
