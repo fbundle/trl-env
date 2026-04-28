@@ -45,6 +45,10 @@ def parse_action(action: str) -> ParsedAction:
             action_value=action_value,
             format_points=format_points,
         )
+    return ParsedAction(
+        action_value=None,
+        format_points=0.0,
+    )
 
 EXTRA_EOS_TOKEN_LIST = []
 
