@@ -133,7 +133,7 @@ def load_batch_information(mode: Mode):
     per_device_batch_size = 1
     num_generations = 8
     max_conversation_length = 8192
-    max_turn_length = 2048
+    max_turn_length = 8192
 
     if mode == ModeDebug:
         effective_batch_size = 4
@@ -177,12 +177,13 @@ def load_env_and_data(effective_batch_size: int):
             return DiscreteLogarithmSeed(g=g, h=h, p=p).model_dump_json()
         # make problem progressively harder
         # bit_size 4 -> 20
+        MIN, MAX = 4, 20
         proportion: float = i / train_size
-        bit_size = int(4 + (20 - 4) * proportion)
+        bit_size = int(MIN + (MAX - MIN) * proportion)
         actual_bit_size = np.random.geometric(p=1 / bit_size)
 
-        actual_bit_size = max(4, actual_bit_size)
-        actual_bit_size = min(32, actual_bit_size)
+        actual_bit_size = max(MIN, actual_bit_size)
+        actual_bit_size = min(MAX, actual_bit_size)
 
         return generate_seed(actual_bit_size)
     
