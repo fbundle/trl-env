@@ -15,7 +15,8 @@ class VLLMRolloutDecoder(RolloutDecoder):
             dtype="bfloat16",
             gpu_memory_utilization=0.2,
             enable_prefix_caching=True,
-            compilation_config=CompilationConfig(level=0),  # 0 = no compilation
+            compilation_config=CompilationConfig(mode=0),  # 0 = no compilation
+            limit_mm_per_prompt={"image": 0, "video": 0},  # no multimodal inputs
         )
         self.sampling_params = SamplingParams(
             temperature=temperature,
