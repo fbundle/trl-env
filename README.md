@@ -52,7 +52,7 @@ class Processor(Protocol):
 ## INSTALL PLATFORM DEPENDENT PACKAGES
 
 ```shell
-uv pip install vllm==0.12.* flash-attn --torch-backend=cu126 --no-build-isolation
+uv pip install vllm==0.12.* flash-attn=2.8.* --torch-backend=cu126 --no-build-isolation
 ```
 
 ## INSTALL VLLM FOR MACOS
