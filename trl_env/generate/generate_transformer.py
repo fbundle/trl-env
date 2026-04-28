@@ -45,8 +45,8 @@ def make_model_func(model: PreTrainedModel) -> ModelFunc[Cache | None]:
 if __name__ == "__main__":
     from transformers import AutoTokenizer, AutoModelForCausalLM
 
-    from .tokenizer import TransformerTokenizer
-    from .processor import *
+    from ..tokenizer import TransformerTokenizer
+    from ..processor import *
 
     device = "mps"
     model_path = "Qwen/Qwen3.5-0.8B"

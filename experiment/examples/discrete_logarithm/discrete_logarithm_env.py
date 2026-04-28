@@ -165,7 +165,7 @@ Note that, only the first match is consider. Once the answer is given, the envir
 
         self.alive = alive
         self.best_points = max(points, self.best_points)
-        self.reward = self.best_points * 0.999**self.step_count
+        self.reward = self.best_points * 0.95**self.step_count
         
         return self,  delta
 

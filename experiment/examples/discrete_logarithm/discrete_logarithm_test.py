@@ -1,8 +1,10 @@
 
+from types import SimpleNamespace
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from trl_env.decoder_transformer import TransformerRolloutDecoder
+from trl_env.decoder_transformer import TransformerDecoderFactory
 from trl_env.rollout import rollout
 from trl_env.processor import qwen3_instruct_processor
 
@@ -14,7 +16,7 @@ def logger(role: str, content: str):
     print(f"{role}> {content}")
 
 def main():
-    model_path = "Qwen/Qwen3.5-0.8B"
+    model_path = "Qwen/Qwen3-0.6B"
     processor = qwen3_instruct_processor
 
     max_turn_length = 1024
@@ -27,16 +29,19 @@ def main():
     eos_token_set = {t.eos_token_id}
     eos_token_set.update([tokenizer.encode(eos_token)[0] for eos_token in EXTRA_EOS_TOKEN_LIST])
 
-    decoder = TransformerRolloutDecoder(
-        model=AutoModelForCausalLM.from_pretrained( # type: ignore
-            model_path,
-            dtype=torch.bfloat16,
-            device_map="auto",
-        ).eval(), 
+    decoder_factory = TransformerDecoderFactory(
         temperature=0.6,
         eos_token_set=eos_token_set,
         max_completion_length=max_turn_length,
     )
+
+    decoder = decoder_factory.make_decoder(SimpleNamespace(
+        model=AutoModelForCausalLM.from_pretrained( # type: ignore
+            model_path,
+            dtype=torch.bfloat16,
+            device_map="auto",
+        ).eval(),
+    ))
 
     system_prompt = SYSTEM_PROMPT.format(
         max_turn_length=max_turn_length,
