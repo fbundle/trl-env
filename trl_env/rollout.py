@@ -143,6 +143,8 @@ def make_reward_func() -> RewardFunc:
             return reward
     return reward_func # type: ignore
 
+
+"""
 import multiprocessing as mp
 
 class ChildDecoder(RolloutDecoder):
@@ -260,3 +262,5 @@ def make_rollout_func_mp(
         }
 
     return rollout_func
+
+"""
