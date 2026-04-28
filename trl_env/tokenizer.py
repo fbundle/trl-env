@@ -6,14 +6,14 @@ class Tokenizer(Protocol):
     def decode(self, token_list: list[int]) -> str: ...
 
 class TransformerTokenizer(Tokenizer):
-    def __init__(self, tokenizer) -> None:
-        self.tokenizer = tokenizer
+    def __init__(self, processing_class) -> None:
+        self.processing_class = processing_class
     
     def encode(self, text: str) -> list[int]:
-        return self.tokenizer(text).input_ids
+        return self.processing_class(text).input_ids
 
     def decode(self, token_list: list[int]) -> str:
-        text = self.tokenizer.decode(token_list)
+        text = self.processing_class.decode(token_list)
         assert isinstance(text, str)
         return text
 

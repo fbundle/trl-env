@@ -2,10 +2,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from transformers import PreTrainedModel
-
 from .environment import Env, Seed
-from .decoder import RolloutDecoder
+from .decoder import RolloutDecoder, RolloutDecoderFactory
 from .processor import Processor
 from .tokenizer import Tokenizer
 
@@ -111,20 +109,20 @@ from tqdm import tqdm
 
 def make_rollout_func(
     processor: Processor, tokenizer: Tokenizer,
-    make_decoder: Callable[[PreTrainedModel], RolloutDecoder],
+    decoder_factory: RolloutDecoderFactory,
     env_factory: Callable[[], Env],    
     system_prompt: str, max_conversation_length: int,
-    num_generations: int = 1,
 ) -> RolloutFunc:
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
-        prompts = sorted(prompts * num_generations)
+        decoder = decoder_factory.make_decoder(trainer)
+        env = env_factory()
+
         state_list = []
         for prompt in tqdm(prompts, desc="rolling out ..."):
             # TODO batch this
             state = rollout(
                 processor=processor, tokenizer=tokenizer,
-                decoder=make_decoder(trainer.model), # type: ignore
-                env=env_factory(),
+                decoder=decoder, env=env,
                 system_prompt=system_prompt, max_conversation_length=max_conversation_length,
                 seed=prompt,
             )

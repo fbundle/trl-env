@@ -18,7 +18,7 @@ from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_
 from experiment.examples.trl_trainer_util.dataset import LazyDataset
 from experiment.examples.trl_trainer_util.trainer_callback import TimeBasedLogSaveCallback
 
-from trl_env.decoder_vllm import VLLMRolloutDecoder
+from trl_env.decoder_vllm import VLLMDecoderFactory
 from trl_env.processor import qwen3_instruct_processor
 
 
@@ -30,10 +30,16 @@ from trl_env.tokenizer import TransformerTokenizer
 
 from transformers import BitsAndBytesConfig
 
-def load_model_and_tokenizer(model_path: str):
+
+
+def load_model_and_tokenizer(
+    model_path: str,
+    load_in_4bit: bool = False,
+    attn_implementaion: str = "flash_attention_2",
+):
     tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=model_path)
 
-    if torch.cuda.is_available() and False:
+    if load_in_4bit:
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_compute_dtype=torch.bfloat16,
@@ -44,15 +50,40 @@ def load_model_and_tokenizer(model_path: str):
             model_path,
             quantization_config=bnb_config,
             device_map="auto",
-            attn_implementation="flash_attention_2",
+            attn_implementation=attn_implementaion,
         )
     else:
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
             dtype=torch.bfloat16,
             device_map="auto",
-            attn_implementation="sdpa",
+            attn_implementation=attn_implementaion,
         )
+
+    return model, tokenizer
+
+type Mode = Literal["prepare", "train", "debug"]
+ModePrepare: Mode = "prepare"
+ModeTrain: Mode = "train"
+ModeDebug: Mode = "debug"
+all_modes = [ModeTrain, ModePrepare, ModeDebug]
+
+def load_model_for_training(mode: Mode, max_turn_length: int, max_conversation_length: int):
+    processor = qwen3_instruct_processor
+    model_path = "Qwen/Qwen3-4B"
+    debug_model_path = "Qwen/Qwen3-0.6B"
+    deepspeed = None # "conf/ds_zero2.json"
+    
+    if mode == ModeDebug:
+        model_path = debug_model_path
+        deepspeed = None
+
+    model, processing_class = load_model_and_tokenizer(model_path)
+
+    # prevent TRL from using apply_chat_template
+    def apply_chat_template(*args, **kwargs):
+        raise RuntimeError("GRPO must not use apply_chat_template")
+    processing_class.apply_chat_template = apply_chat_template
 
     lora_config = LoraConfig(
         r=8,
@@ -72,53 +103,22 @@ def load_model_and_tokenizer(model_path: str):
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, lora_config)
-    return model, tokenizer
-
-type Mode = Literal["prepare", "train", "debug"]
-ModePrepare: Mode = "prepare"
-ModeTrain: Mode = "train"
-ModeDebug: Mode = "debug"
-all_modes = [ModeTrain, ModePrepare, ModeDebug]
-
-def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
-    processor = qwen3_instruct_processor
-    model_path = "Qwen/Qwen3-4B"
-    debug_model_path = "Qwen/Qwen3-0.6B"
-
-    if torch.cuda.is_available():
-        deepspeed = "conf/ds_zero2.json"
-    else:
-        deepspeed = None
-    
-    if mode == ModeDebug:
-        model_path = debug_model_path
-        deepspeed = None
-
-    model, t = load_model_and_tokenizer(model_path)
-    def apply_chat_template(*args, **kwargs):
-        raise RuntimeError("GRPO must not use apply_chat_template")
-
-    # prevent TRL from using apply_chat_template
-    t.apply_chat_template = apply_chat_template
-
-    tokenizer = TransformerTokenizer(t)
-
-    eos_token_set = {t.eos_token_id}
+    tokenizer = TransformerTokenizer(processing_class)
+    eos_token_set = {processing_class.eos_token_id}
     eos_token_set.update([tokenizer.encode(eos_token)[0] for eos_token in EXTRA_EOS_TOKEN_LIST])
 
-    decoder = VLLMRolloutDecoder(
-        model=model,
-        processing_class=t,
+    decoder_factory = VLLMDecoderFactory(
         temperature=1.0,
         eos_token_set=eos_token_set,
         max_completion_length=max_turn_length,
+        gpu_memory_utilization=0.5,
     )
 
     return (
         model_path,
         processor,
         tokenizer,
-        decoder,
+        decoder_factory,
         model,
         deepspeed,
     )
@@ -217,10 +217,10 @@ def main(mode: Mode, uuid: str):
         model_path,
         processor,
         tokenizer,
-        decoder,
+        decoder_factory,
         model,
         deepspeed,
-    ) = load_model(mode=mode, max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
+    ) = load_model_for_training(mode=mode, max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
 
     output_dir = f"mnt/output/discrete-logarithm-{os.path.basename(model_path)}-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-{uuid}-lora"
 
@@ -234,9 +234,7 @@ def main(mode: Mode, uuid: str):
 
 
     # TRAIN
-    train_dataset = data.map(
-        lambda input_text: {"prompt": input_text}
-    )
+    train_dataset = data.map(lambda input_text: {"prompt": input_text})
 
     has_cuda = torch.cuda.is_available()
     has_mps = torch.backends.mps.is_available()
@@ -281,18 +279,14 @@ def main(mode: Mode, uuid: str):
 
     system_prompt = SYSTEM_PROMPT.format(max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
 
-    def make_decoder(*args, **kwrags):
-        decoder.sync_weights()
-        return decoder
 
     rollout_func = make_rollout_func(
         processor=processor,
         tokenizer=tokenizer,
         env_factory=env_factory,
-        make_decoder=make_decoder,
+        decoder_factory=decoder_factory,
         system_prompt=system_prompt,
         max_conversation_length=max_conversation_length,
-        num_generations=num_generations,
     )
     reward_func = make_reward_func()
 
@@ -300,20 +294,15 @@ def main(mode: Mode, uuid: str):
     trainer = GRPOTrainer(
         args=training_args,
         model=model, # type: ignore
-        processing_class=tokenizer.tokenizer,
+        processing_class=tokenizer.processing_class,
         rollout_func=rollout_func,
         reward_funcs=reward_func, # type: ignore
-        reward_processing_classes=tokenizer.tokenizer,
+        reward_processing_classes=tokenizer.processing_class,
         train_dataset=train_dataset, # type: ignore
         callbacks=[TimeBasedLogSaveCallback(
             save_every_seconds=3600,
             log_every_seconds=0,
         )],
-    )
-
-    decoder.init_vllm(
-        accelerator=trainer.accelerator,
-        is_fsdp_enabled=trainer.is_fsdp_enabled,
     )
 
     trainer.train(resume_from_checkpoint=get_last_checkpoint(output_dir))
