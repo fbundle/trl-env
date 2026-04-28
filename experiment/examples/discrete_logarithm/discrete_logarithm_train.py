@@ -177,9 +177,9 @@ def load_env_and_data(effective_batch_size: int):
             h = pow(g, x, p)
             return DiscreteLogarithmSeed(g=g, h=h, p=p).model_dump_json()
         # make problem progressively harder
-        # bit_size 4 -> 16
+        # bit_size 4 -> 20
         proportion: float = i / train_size
-        bit_size = int(4 + (16 - 4) * proportion)
+        bit_size = int(4 + (20 - 4) * proportion)
         return generate_seed(bit_size)
     
     data = LazyDataset[str](n=train_size, f=f)
