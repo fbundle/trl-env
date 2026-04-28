@@ -29,8 +29,31 @@ class VLLMRolloutDecoder(RolloutDecoder):
             stop_token_ids=list(eos_token_set),
         )
     
+
+    def _fix_param_name_to_vllm(self, name: str, extra_prefixes: list[str] | None = None) -> str:
+        """Fix parameter name for vLLM compatibility."""
+        extra_prefixes = extra_prefixes or []
+        prefixes = ["_checkpoint_wrapped_module."] + extra_prefixes
+        for prefix in prefixes:
+            name = name.replace(prefix, "")
+        return name
+
     def update_weights(self, training_model: PreTrainedModel):
+        # stole from trl.generation.vllm_generation
+        # 
         for name, param in training_model.named_parameters():
+            # When using PEFT, we need to recover the original parameter name
+            name = name.removeprefix("base_model.model.").replace(".base_layer", "")
+            # Skip PEFT layers: they don't exist in vLLM, and they are merged already.
+            if training_model.prefix in name:
+                continue
+            # When module to save, remove its prefix and discard the original module
+            if "original_module" in name:
+                continue
+            name = self._fix_param_name_to_vllm(name, extra_prefixes=["modules_to_save.default."])
+
+
+
             llm_model = self.llm.llm_engine.model_executor.driver_worker.model_runner.model
             llm_model.load_weights([(name, param.data)])
 
