@@ -54,15 +54,15 @@ class VLLMRolloutDecoder(RolloutDecoder):
             images=None,
         )
 
-        return completion_ids[0], logprobs[0]
+        return completion_ids[0], [lp[0] for lp in logprobs[0]]
 
 
 if __name__ == "__main__":
     from typing import Iterable
     from transformers import AutoTokenizer, AutoModelForCausalLM
 
-    from .tokenizer import TransformerTokenizer
-    from .processor import *
+    from trl_env.tokenizer import *
+    from trl_env.processor import *
 
     device = "cuda"
     model_path = "Qwen/Qwen3-0.6B"
