@@ -66,11 +66,11 @@ def apply_chat_template(*args, **kwargs):
 
 def load_model_for_training(mode: Mode, max_turn_length: int, max_conversation_length: int):
     from trl_env.decoder_vllm import VLLMDecoderFactory
-    from trl_env.processor import qwen3_instruct_processor
+    from trl_env.processor import qwen3_instruct_processor, qwen3_processor
     from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST
 
 
-    processor = qwen3_instruct_processor
+    processor = qwen3_processor
     model_path = "Qwen/Qwen3-4B"
     debug_model_path = "Qwen/Qwen3-0.6B"
     deepspeed = None # "conf/ds_zero2.json"
