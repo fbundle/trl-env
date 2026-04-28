@@ -31,8 +31,8 @@ export TORCH_DISTRIBUTED_DEBUG=DETAIL
 export NCCL_ASYNC_ERROR_HANDLING=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-export PATH="$PATH:.venv/bin"
-accelerate launch -m {recipe_module} train {uuid} |& tee log/run_{job_name}.log
+export UV="$HOME/uv-x86_64-unknown-linux-gnu/uv"
+$UV run accelerate launch -m {recipe_module} train {uuid} |& tee log/run_{job_name}.log
 """
 
 def write_file(path: str, content: str = ""):
