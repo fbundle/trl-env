@@ -25,7 +25,7 @@ class VLLMDecoderFactory(RolloutDecoderFactory):
         eos_token_set: set[int],
         max_completion_length: int,
         gpu_memory_utilization: float = 0.5,
-        enable_sleep_mode: bool = True,
+        enable_sleep_mode: bool = False,
     ) -> None:
         self.vllm: VLLMGeneration | None = None
         self.temperature = temperature
