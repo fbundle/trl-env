@@ -11,10 +11,8 @@ dependencies = [
     "python-dotenv",
     "tensorboard",
     "jiwer",
-    "deepspeed",   
-    "mpi4py",
     "bitsandbytes",
-    "mpi4py",
+    "mlx-lm ; sys_platform == 'darwin'",
 ]
 
 [tool.uv.sources]
