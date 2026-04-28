@@ -116,7 +116,7 @@ def make_rollout_func(
     num_generations: int = 1,
 ) -> RolloutFunc:
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
-        prompts = prompts * num_generations
+        prompts = sorted(prompts * num_generations)
         state_list = []
         for prompt in prompts:
             # TODO - currently we only do batch_size=1
