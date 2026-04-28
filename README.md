@@ -47,7 +47,7 @@ class Processor(Protocol):
 [TRL-ENV](https://github.com/fbundle/trl-env) provides a very simple example for training agentic LLM. See `experiment/examples`
 
 
-# INSTALLATION
+# RESOURCES
 
 ## INSTALL PLATFORM DEPENDENT PACKAGES
 
@@ -63,3 +63,7 @@ cd vllm
 uv pip install -r requirements/cpu.txt --index-strategy unsafe-best-match
 uv pip install -e .
 ```
+
+## ROLLOUT_FUNC EXAMPLES FROM TRL
+
+[grpo_functiongemma_browsergym_openenv.ipynb](https://github.com/huggingface/trl/blob/main/examples/notebooks/grpo_functiongemma_browsergym_openenv.ipynb)
