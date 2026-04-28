@@ -176,8 +176,8 @@ def load_env_and_data(effective_batch_size: int):
             h = pow(g, x, p)
             return DiscreteLogarithmSeed(g=g, h=h, p=p).model_dump_json()
         # make problem progressively harder
-        # bit_size 4 -> 20
-        MIN, MAX = 4, 20
+        # bit_size 6 -> 20
+        MIN, MAX = 6, 20
         proportion: float = i / train_size
         bit_size = int(MIN + (MAX - MIN) * proportion)
         actual_bit_size = np.random.geometric(p=1 / bit_size)
