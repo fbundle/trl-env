@@ -8,6 +8,8 @@ import jiwer
 
 from trl_env.environment import Action, Delta, Env, Seed
 
+import re
+
 def extract_last_natural(s: str) -> int | None:
     matches = re.findall(r'-?\d+', s)
     if not matches:
