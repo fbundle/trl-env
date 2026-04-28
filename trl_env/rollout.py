@@ -107,6 +107,7 @@ def rollout(
             break
     return state
 
+from tqdm import tqdm
 
 def make_rollout_func(
     processor: Processor, tokenizer: Tokenizer,
@@ -118,7 +119,7 @@ def make_rollout_func(
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         prompts = sorted(prompts * num_generations)
         state_list = []
-        for prompt in prompts:
+        for prompt in tqdm(prompts, desc="rolling out ..."):
             # TODO batch this
             state = rollout(
                 processor=processor, tokenizer=tokenizer,
