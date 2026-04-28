@@ -227,11 +227,11 @@ def make_rollout_func_mp(
             child_list.append(p)
         
         # process messages
-        none_count = 0
-        while none_count < len(prompts):
+        finish_count = 0
+        while finish_count < len(prompts):
             req = qi.get()
             if req["input_ids"] is None:
-                none_count += 1
+                finish_count += 1
                 continue
 
             res = decoder.generate(req["input_ids"])
