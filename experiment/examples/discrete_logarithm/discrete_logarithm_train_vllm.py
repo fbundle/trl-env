@@ -33,7 +33,7 @@ from transformers import BitsAndBytesConfig
 def load_model_and_tokenizer(model_path: str):
     tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=model_path)
 
-    if torch.cuda.is_available():
+    if torch.cuda.is_available() and False:
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_compute_dtype=torch.bfloat16,

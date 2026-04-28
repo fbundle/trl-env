@@ -119,8 +119,7 @@ def make_rollout_func(
         prompts = sorted(prompts * num_generations)
         state_list = []
         for prompt in prompts:
-            # TODO - currently we only do batch_size=1
-            # use continuous batching - NOTE: cache can be merged/split
+            # TODO batch this
             state = rollout(
                 processor=processor, tokenizer=tokenizer,
                 decoder=make_decoder(trainer.model), # type: ignore
