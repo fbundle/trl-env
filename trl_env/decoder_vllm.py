@@ -12,7 +12,6 @@ from transformers import PreTrainedModel
 
 from accelerate.utils import is_peft_model
 
-
 class VLLMRolloutDecoder(RolloutDecoder):
     def __init__(self,
         model_path: str,
