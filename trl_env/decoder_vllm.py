@@ -59,5 +59,4 @@ class VLLMDecoderFactory(RolloutDecoderFactory):
             self.vllm.sync_weights()
             self._last_synced_step = current_step
 
-        self.vllm.sync_weights()
         return VLLMDecoder(vllm=self.vllm)
