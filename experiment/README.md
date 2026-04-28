@@ -11,7 +11,7 @@ echo "sleep 28800" | qsub -P $PBS_PROJECT -q normal -l select=1:ngpus=1 -l wallt
 - get hostname
 
 ```shell
-qstat -ans <job_id> # or qstat -f <job_id> | grep exec_host
+qstat -f <job_id> | grep exec_host
 ```
 
 - ssh
