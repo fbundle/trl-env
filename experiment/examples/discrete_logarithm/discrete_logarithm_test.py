@@ -11,37 +11,64 @@ from trl_env.processor import qwen3_instruct_processor
 from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST, DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
 from trl_env.tokenizer import TransformerTokenizer
 
+import mlx_lm
+import mlx_lm.sample_utils
+
+class MlxDecoder(RolloutDecoder):
+    def __init__(self,
+        model_path: str,
+        temperature: float,
+        max_completion_length: int,
+    ):
+        model, tokenizer, config = mlx_lm.load(  # type: ignore
+            path_or_hf_repo=model_path,
+            return_config=True,
+        )
+        self.model = model
+        self.tokenizer = tokenizer
+
+        self.temperature = temperature
+        self.max_completion_length = max_completion_length
+    
+    def generate(self, input_ids: list[int]) -> tuple[list[int], list[float]]:
+        response_generator = mlx_lm.stream_generate(
+            model=self.model,
+            prompt=input_ids,
+            max_tokens=self.max_completion_length,
+            sampler=mlx_lm.sample_utils.make_sampler(
+                temp=self.temperature,
+            ),
+            logits_processors=mlx_lm.sample_utils.make_logits_processors(),
+        )
+        completions_ids: list[int] = []
+        logprobs: list[float] = []
+        for response in response_generator:
+            token = response.token
+            logprob = float(response.logprobs[token].item())
+            completions_ids.append(token)
+            logprobs.append(logprob)
+        
+        return completions_ids, logprobs
+
 
 def logger(role: str, content: str):
     print(f"{role}> {content}")
 
-def main():
-    model_path = "Qwen/Qwen3-0.6B"
-    processor = qwen3_instruct_processor
+def main(model_path: str):
+    processor = qwen3_processor
 
-    max_turn_length = 1024
-    max_conversation_length = 4096
+    max_turn_length = 8192
+    max_conversation_length = 8192
 
     t = AutoTokenizer.from_pretrained(model_path)
 
     tokenizer = TransformerTokenizer(t)
 
-    eos_token_set = {t.eos_token_id}
-    eos_token_set.update([tokenizer.encode(eos_token)[0] for eos_token in EXTRA_EOS_TOKEN_LIST])
-
-    decoder_factory = TransformerDecoderFactory(
+    decoder = MlxDecoder(
+        model_path=model_path,
         temperature=0.6,
-        eos_token_set=eos_token_set,
         max_completion_length=max_turn_length,
     )
-
-    decoder = decoder_factory.make_decoder(SimpleNamespace(
-        model=AutoModelForCausalLM.from_pretrained( # type: ignore
-            model_path,
-            dtype=torch.bfloat16,
-            device_map="auto",
-        ).eval(),
-    ))
 
     system_prompt = SYSTEM_PROMPT.format(
         max_turn_length=max_turn_length,
@@ -61,7 +88,5 @@ def main():
         conversation_logger=logger,
     )
 
-
-
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1])
