@@ -53,7 +53,7 @@ class Processor(Protocol):
 
 ```shell
 uv pip install flash-attn --no-build-isolation
-uv pip install vllm==0.19.1 --torch-backend=cu126
+uv pip install vllm==0.18.0 --torch-backend=cu126
 ```
 
 ## INSTALL VLLM FOR MACOS
