@@ -11,15 +11,10 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from accelerate import PartialState
 from transformers.trainer_utils import get_last_checkpoint
 
-
-from experiment.examples.discrete_logarithm.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
-
-from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST
 from experiment.examples.trl_trainer_util.dataset import LazyDataset
 from experiment.examples.trl_trainer_util.trainer_callback import TimeBasedLogSaveCallback
 
-from trl_env.decoder_vllm import VLLMDecoderFactory
-from trl_env.processor import qwen3_instruct_processor
+
 
 
 from trl.trainer.grpo_trainer import GRPOTrainer
@@ -69,6 +64,11 @@ ModeDebug: Mode = "debug"
 all_modes = [ModeTrain, ModePrepare, ModeDebug]
 
 def load_model_for_training(mode: Mode, max_turn_length: int, max_conversation_length: int):
+    from trl_env.decoder_vllm import VLLMDecoderFactory
+    from trl_env.processor import qwen3_instruct_processor
+    from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST
+
+
     processor = qwen3_instruct_processor
     model_path = "Qwen/Qwen3-4B"
     debug_model_path = "Qwen/Qwen3-0.6B"
@@ -157,6 +157,8 @@ def load_batch_information(mode: Mode):
     )
 
 def load_env_and_data(effective_batch_size: int):
+    from experiment.examples.discrete_logarithm.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
+
     # train 1000 batches
     train_size = 1000 * effective_batch_size
     # train data generation
@@ -187,6 +189,7 @@ def load_env_and_data(effective_batch_size: int):
     return (
         env_factory,
         data,
+        SYSTEM_PROMPT,
     )
 
 
@@ -212,6 +215,7 @@ def main(mode: Mode, uuid: str):
     (
         env_factory,
         data,
+        SYSTEM_PROMPT,
     ) = load_env_and_data(effective_batch_size=effective_batch_size)
     (
         model_path,
