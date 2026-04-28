@@ -167,7 +167,7 @@ class ChildDecoder(RolloutDecoder):
         return self.qo.get()
 
 def split_decoder(ctx, n: int) -> tuple[mp.Queue, list[ChildDecoder]]:
-    qi = ctx.Queue(maxsize=1024)
+    qi = ctx.Queue(maxsize=10240)
     child_decoder_list = []
     for index in range(n):
         child_decoder = ChildDecoder(
@@ -179,27 +179,19 @@ def split_decoder(ctx, n: int) -> tuple[mp.Queue, list[ChildDecoder]]:
     return qi, child_decoder_list
 
 def rollout_then_close_decoder(args):
-    qs, processor, tokenizer, decoder, env_factory, system_prompt, max_conversation_length, seed = args
+    processor, tokenizer, decoder, env_factory, system_prompt, max_conversation_length, seed = args
     env = env_factory()
-    state, error = None, None
-    try:
-        state = rollout(
-            processor=processor, tokenizer=tokenizer,
-            decoder=decoder, env=env,
-            system_prompt=system_prompt, max_conversation_length=max_conversation_length,
-            seed=seed,
-        )
-        error = None
-    except Exception as e:
-        state = None
-        error = e
-    finally:
-        decoder.close()
-        qs.put({
-            "index": decoder.index,
-            "state": state,
-            "error": error,
-        })
+
+    state = rollout(
+        processor=processor, tokenizer=tokenizer,
+        decoder=decoder, env=env,
+        system_prompt=system_prompt, max_conversation_length=max_conversation_length,
+        seed=seed,
+    )
+
+    decoder.close()
+
+    return decoder.index, state
 
 def make_rollout_func_mp(
     processor: Processor, tokenizer: Tokenizer,
@@ -212,48 +204,27 @@ def make_rollout_func_mp(
         ctx = mp.get_context('spawn')
 
         qi, child_decoder_list = split_decoder(ctx, len(prompts))
-        qs = ctx.Queue(len(prompts))
 
-        child_list = []
+        args_list = []
         for index, seed in enumerate(prompts):
-            p = ctx.Process(target=rollout_then_close_decoder, args=[(
+            args = (
                 qs,
                 processor, tokenizer,
                 child_decoder_list[index], env_factory,
                 system_prompt, max_conversation_length,
                 seed,
-            )])
-            p.start()
-            child_list.append(p)
+            )
+            args_list.append(args)
         
-        # process messages
-        with tqdm(total=len(prompts), desc="rolling_out ...") as pbar:
-            finish_count = 0
-            while finish_count < len(prompts):
-                req = qi.get()
-                if req["input_ids"] is None:
-                    finish_count += 1
-                    pbar.update(1)
-                    continue
-
-                res = decoder.generate(req["input_ids"])
-                index = req["index"]
-                child_decoder_list[index].qo.put(res)
-
-        for child in child_list:
-            child.join()
-
+        
         indexed_state_list = []
-        for _ in prompts:
-            indexed_state = qs.get()
-            error = indexed_state["error"]
-            if error is not None:
-                raise error
-            indexed_state_list.append(indexed_state)
+        with ctx.Pool(processes=len(prompts)) as pool:
+            for index, state in pool.imap_unordered(rollout_then_close_decoder, args_list):
+                indexed_state_list.append((index, state))
         
-        indexed_state_list.sort(key=lambda indexed_state: indexed_state["index"])
+        indexed_state_list.sort(key=lambda indexed_state: indexed_state[0])
 
-        state_list = [indexed_state["state"] for indexed_state in indexed_state_list]
+        state_list = [indexed_state[1] for indexed_state in indexed_state_list]
 
         return {
             "prompt_ids": [state.conversation[:state.initial_length] for state in state_list],
