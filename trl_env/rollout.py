@@ -119,7 +119,7 @@ def make_rollout_func(
 
         state_list = []
         for prompt in tqdm(prompts, desc="rolling out ..."):
-            # TODO batch this
+            # TODO batch this - need to make decoder in batch as well
             state = rollout(
                 processor=processor, tokenizer=tokenizer,
                 decoder=decoder, env=env,
