@@ -73,13 +73,19 @@ if __name__ == "__main__":
     processor = qwen3_processor
 
     decoder = VLLMRolloutDecoder(
-        model_path=model_path,
+        model=m,
+        processing_class=t,
         temperature=1.0,
         eos_token_set={eos_token},
         max_completion_length=512,
     )
 
-    decoder.update_weights(m)
+    decoder.init_vllm(
+        accelerator=Accelerator(),
+        is_fsdp_enabled=False,
+    )
+
+    decoder.sync_weights()
 
     input_ids = tokenizer.encode(processor.append_user_input("the cat is lying on the rooftop"))
     output_ids, logprobs = decoder.generate(input_ids)
