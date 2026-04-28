@@ -24,15 +24,13 @@ class VLLMDecoderFactory(RolloutDecoderFactory):
         temperature: float,
         eos_token_set: set[int],
         max_completion_length: int,
-        gpu_memory_utilization: float = 0.5,
-        enable_sleep_mode: bool = False,
+        gpu_memory_utilization: float = 0.3,
     ) -> None:
         self.vllm: VLLMGeneration | None = None
         self.temperature = temperature
         self.eos_token_set = eos_token_set
         self.max_completion_length = max_completion_length
         self.gpu_memory_utilization = gpu_memory_utilization
-        self.enable_sleep_mode = enable_sleep_mode
 
         self._last_synced_step: int = -1
     
@@ -45,7 +43,7 @@ class VLLMDecoderFactory(RolloutDecoderFactory):
                 processing_class=trainer.processing_class, # type: ignore
                 mode="colocate",
                 gpu_memory_utilization=self.gpu_memory_utilization,
-                enable_sleep_mode=self.enable_sleep_mode,
+                enable_sleep_mode=False,
                 max_completion_length=self.max_completion_length,
                 temperature=self.temperature,
                 generation_kwargs=dict(
