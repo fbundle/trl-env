@@ -60,6 +60,9 @@ ModeTrain: Mode = "train"
 ModeDebug: Mode = "debug"
 all_modes = [ModeTrain, ModePrepare, ModeDebug]
 
+def apply_chat_template(*args, **kwargs):
+    raise RuntimeError("GRPO must not use apply_chat_template")
+
 def load_model_for_training(mode: Mode, max_turn_length: int, max_conversation_length: int):
     from trl_env.decoder_vllm import VLLMDecoderFactory
     from trl_env.processor import qwen3_instruct_processor
@@ -78,8 +81,6 @@ def load_model_for_training(mode: Mode, max_turn_length: int, max_conversation_l
     model, processing_class = load_model_and_tokenizer(model_path)
 
     # prevent TRL from using apply_chat_template
-    def apply_chat_template(*args, **kwargs):
-        raise RuntimeError("GRPO must not use apply_chat_template")
     processing_class.apply_chat_template = apply_chat_template
 
     lora_config = LoraConfig(

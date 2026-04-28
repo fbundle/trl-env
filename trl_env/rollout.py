@@ -164,14 +164,14 @@ class ChildDecoder(RolloutDecoder):
         })
         return self.qo.get()
 
-def split_decoder(n: int) -> tuple[mp.Queue, list[ChildDecoder]]:
-    qi = mp.Queue(maxsize=1024)
+def split_decoder(ctx, n: int) -> tuple[mp.Queue, list[ChildDecoder]]:
+    qi = ctx.Queue(maxsize=1024)
     child_decoder_list = []
     for index in range(n):
         child_decoder = ChildDecoder(
             index=index,
             qi=qi,
-            qo=mp.Queue(maxsize=1),
+            qo=ctx.Queue(maxsize=1),
         )
         child_decoder_list.append(child_decoder)
     return qi, child_decoder_list
@@ -206,11 +206,11 @@ def make_rollout_func_mp(
 ) -> RolloutFunc:
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         decoder = decoder_factory.make_decoder(trainer)
-
-        qi, child_decoder_list = split_decoder(len(prompts))
-        qs = mp.Queue(len(prompts))
-
         ctx = mp.get_context('spawn')
+
+        qi, child_decoder_list = split_decoder(ctx, len(prompts))
+        qs = ctx.Queue(len(prompts))
+
         child_list = []
         for index, seed in enumerate(prompts):
             p = ctx.Process(target=rollout_then_close_decoder, args=[
