@@ -207,6 +207,7 @@ def make_rollout_func_mp(
     env_factory: Callable[[], Env],    
     system_prompt: str, max_conversation_length: int,
 ) -> RolloutFunc:
+    raise RuntimeError("ERROR: child.join seems to stuck")
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         decoder = decoder_factory.make_decoder(trainer)
         ctx = mp.get_context('spawn')
