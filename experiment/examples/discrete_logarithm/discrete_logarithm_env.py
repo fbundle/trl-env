@@ -8,6 +8,13 @@ import jiwer
 
 from trl_env.environment import Action, Delta, Env, Seed
 
+def extract_last_natural(s: str) -> int | None:
+    matches = re.findall(r'-?\d+', s)
+    if not matches:
+        return None
+    last = int(matches[-1])
+    return last if last >= 0 else None
+
 @dataclass
 class ParsedAction:
     action_type: Literal["tool_call", "answer", None]
@@ -17,32 +24,27 @@ class ParsedAction:
 f = lambda x: 1 / (1 + x)
 
 def parse_action(action: str) -> ParsedAction:
-    parts = action.split("<|box_start|>")
+    parts = action.split("<tool_call>", maxsplit=1)
     if len(parts) >= 2:
-        action_value = parts[1].split("<|box_end|>")[0]
-        format_points = f(jiwer.cer(f"<|box_start|>{action_value}<|box_end|>", action))
+        action_value = parts[1]
+        format_points = f(jiwer.cer(f"<tool_call>{action_value}", action))
+        return ParsedAction(
+            action_type="tool_call",
+            action_value=action_value,
+            format_points=format_points,
+        )
+
+    last_natural = extract_last_natural(action)
+    if last_natural is not None:
+        action_value = str(last_natural)
+        format_points = f(jiwer.cer(action_value, action))
         return ParsedAction(
             action_type="answer",
             action_value=action_value,
             format_points=format_points,
         )
 
-    parts = action.split("<tool_call>")
-    if len(parts) >= 2:
-        action_value = parts[1].split("</tool_call>")[0]
-        format_points = f(jiwer.cer(f"<tool_call>{action_value}</tool_call>", action))
-        return ParsedAction(
-            action_type="tool_call",
-            action_value=action_value,
-            format_points=format_points,
-        )
-    
-    return ParsedAction(
-        action_type=None,
-        format_points=0.0,
-    )
-
-EXTRA_EOS_TOKEN_LIST = ["</tool_call>", "<|box_end|>"]
+EXTRA_EOS_TOKEN_LIST = []
 
 f = lambda x: 1 / (1 + x)
 
@@ -138,16 +140,13 @@ class DiscreteLogarithmEnv(Env):
         # TODO - consider input the source code of the environment into the first prompt
         return self, f"""
 Find x such that {self.seed.g}^x = {self.seed.h} (mod {self.seed.p}), this is the discrete logarithm problem
-You are allow to use javascript by writing
+You are allow to use javascript by ending your response by
 
-<tool_call>your javascript code here</tool_call>
+<tool_call> your javascript code here
 
 I will run that code in a V8 engine with a timeout of 1 seconds and 50 MB max memory.
-If you are confident with your answer, write
-
-<|box_start|>answer<|box_end|>
-
-Note that, only the first match is consider. Once the answer is given, the environment is terminated.
+If you are confident with your answer, just output the answer without any explanation.
+Note that, answer should be in (mod {self.seed.p}). Once the answer is given, the environment is terminated.
 """
     def step(self, action: Action) -> tuple[Env, Delta]:
         assert self.seed is not None
