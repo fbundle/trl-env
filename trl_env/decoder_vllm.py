@@ -1,4 +1,9 @@
 from .decoder import RolloutDecoder
+
+import os
+# https://github.com/huggingface/trl/issues/3859
+os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "0"
+
 from vllm import LLM, RequestOutput, SamplingParams
 from vllm.config import CompilationConfig
 from transformers import PreTrainedModel
