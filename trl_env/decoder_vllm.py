@@ -33,6 +33,8 @@ class VLLMDecoderFactory(RolloutDecoderFactory):
         self.max_completion_length = max_completion_length
         self.gpu_memory_utilization = gpu_memory_utilization
         self.enable_sleep_mode = enable_sleep_mode
+
+        self._last_synced_step: int = -1
     
     def make_decoder(self, trainer: Trainer) -> RolloutDecoder:
         if self.vllm is None:
@@ -52,6 +54,10 @@ class VLLMDecoderFactory(RolloutDecoderFactory):
                     include_stop_str_in_output=True,
                 ),
             )
+        current_step = trainer.state.global_step
+        if current_step != self._last_synced_step:
+            self.vllm.sync_weights()
+            self._last_synced_step = current_step
 
         self.vllm.sync_weights()
         return VLLMDecoder(vllm=self.vllm)
