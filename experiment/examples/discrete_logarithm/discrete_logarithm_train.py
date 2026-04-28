@@ -41,14 +41,14 @@ def load_model_and_tokenizer(
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
             quantization_config=bnb_config,
-            device_map="auto",
+            # device_map="auto",
             attn_implementation=attn_implementaion,
         )
     else:
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
             dtype=torch.bfloat16,
-            device_map="auto",
+            # device_map="auto",
             attn_implementation=attn_implementaion,
         )
 
