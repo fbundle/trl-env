@@ -51,6 +51,7 @@ class VLLMRolloutDecoder(RolloutDecoder):
     def generate(self, input_ids: list[int]) -> tuple[list[int], list[float]]:
         return self.vllm.generate(
             prompts=[input_ids], num_generations=1,
+            images=None,
         )
 
 if __name__ == "__main__":
@@ -60,8 +61,8 @@ if __name__ == "__main__":
     from .tokenizer import TransformerTokenizer
     from .processor import *
 
-    device = "cpu"
-    model_path = "Qwen/Qwen3.5-0.8B"
+    device = "cuda"
+    model_path = "Qwen/Qwen3-0.6B"
 
     t = AutoTokenizer.from_pretrained(model_path)
     m: PreTrainedModel = AutoModelForCausalLM.from_pretrained(model_path).to(device) #type: ignore
@@ -88,11 +89,9 @@ if __name__ == "__main__":
     decoder.sync_weights()
 
     input_ids = tokenizer.encode(processor.append_user_input("the cat is lying on the rooftop"))
-    output_ids, logprobs = decoder.generate(input_ids)
+    prompt_ids, completion_ids, logprobs, logprob_token_ids = decoder.generate(input_ids)
 
-    output = tokenizer.decode(output_ids)
-    print(logprobs)
-    print(output)
+    import pdb; pdb.set_trace()
 
 
     
