@@ -106,19 +106,19 @@ def load_model(mode: Mode, max_turn_length: int, max_conversation_length: int):
     eos_token_set = {t.eos_token_id}
     eos_token_set.update([tokenizer.encode(eos_token)[0] for eos_token in EXTRA_EOS_TOKEN_LIST])
 
-    make_decoder = lambda _: TransformerRolloutDecoder(
-        model=model, 
+    decoder = VLLMRolloutDecoder(
+        model=model,
+        processing_class=t,
         temperature=1.0,
         eos_token_set=eos_token_set,
         max_completion_length=max_turn_length,
     )
 
-
     return (
         model_path,
         processor,
         tokenizer,
-        make_decoder,
+        decoder,
         model,
         deepspeed,
     )
@@ -217,7 +217,7 @@ def main(mode: Mode, uuid: str):
         model_path,
         processor,
         tokenizer,
-        make_decoder,
+        decoder,
         model,
         deepspeed,
     ) = load_model(mode=mode, max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
@@ -281,6 +281,10 @@ def main(mode: Mode, uuid: str):
 
     system_prompt = SYSTEM_PROMPT.format(max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
 
+    def make_decoder(*args, **kwrags):
+        decoder.sync_weights()
+        return decoder
+
     rollout_func = make_rollout_func(
         processor=processor,
         tokenizer=tokenizer,
@@ -304,6 +308,11 @@ def main(mode: Mode, uuid: str):
             save_every_seconds=3600,
             log_every_seconds=0,
         )],
+    )
+
+    decoder.init_vllm(
+        accelerator=trainer.accelerator,
+        is_fsdp_enabled=trainer.is_fsdp_enabled,
     )
 
     trainer.train(resume_from_checkpoint=get_last_checkpoint(output_dir))
