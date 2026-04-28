@@ -167,10 +167,8 @@ def load_env_and_data(effective_batch_size: int):
     def f(i: int) -> str:
         def generate_seed(bit_size: int = 10) -> str:
             # find a prime p
-            while True:
-                p = random.randint(2**(bit_size-1), 2**bit_size)
-                if sympy.isprime(p):
-                    break
+            p = random.randint(2**(bit_size-1), 2**bit_size)
+            p = sympy.nextprime(p)
             # use g=2 as a simple generator (works for most primes)
             g = 2
             # sample x and compute h
@@ -185,7 +183,7 @@ def load_env_and_data(effective_batch_size: int):
 
         actual_bit_size = max(4, actual_bit_size)
         actual_bit_size = min(32, actual_bit_size)
-        
+
         return generate_seed(actual_bit_size)
     
     data = LazyDataset[str](n=train_size, f=f)
