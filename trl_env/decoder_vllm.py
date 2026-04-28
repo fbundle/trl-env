@@ -1,3 +1,5 @@
+from peft import PeftModel
+
 from .decoder import RolloutDecoder
 
 import os
@@ -7,6 +9,15 @@ os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "0"
 from vllm import LLM, RequestOutput, SamplingParams
 from vllm.config import CompilationConfig
 from transformers import PreTrainedModel
+
+def is_peft_model(model):
+    from .other import extract_model_from_parallel
+
+    if is_peft_available():
+        from peft import PeftModel
+
+    return is_peft_available() and isinstance(extract_model_from_parallel(model), PeftModel)
+
 
 class VLLMRolloutDecoder(RolloutDecoder):
     def __init__(self,
@@ -38,24 +49,31 @@ class VLLMRolloutDecoder(RolloutDecoder):
             name = name.replace(prefix, "")
         return name
 
-    def update_weights(self, training_model: PreTrainedModel):
-        # stole from trl.generation.vllm_generation
-        # 
-        for name, param in training_model.named_parameters():
-            # When using PEFT, we need to recover the original parameter name
-            name = name.removeprefix("base_model.model.").replace(".base_layer", "")
-            # Skip PEFT layers: they don't exist in vLLM, and they are merged already.
-            if training_model.prefix in name:
-                continue
-            # When module to save, remove its prefix and discard the original module
-            if "original_module" in name:
-                continue
-            name = self._fix_param_name_to_vllm(name, extra_prefixes=["modules_to_save.default."])
+    def update_weights(self, model: PreTrainedModel | PeftModel):
+        # stole from .venv/lib/python3.12/site-packages/trl/generation/vllm_generation.py
+        if is_peft_model(model):
+            model.merge_adapter()
+            for name, param in model.named_parameters():
+                # When using PEFT, we need to recover the original parameter name
+                name = name.removeprefix("base_model.model.").replace(".base_layer", "")
+                # Skip PEFT layers: they don't exist in vLLM, and they are merged already.
+                if model.prefix in name:
+                    continue
+                # When module to save, remove its prefix and discard the original module
+                if "original_module" in name:
+                    continue
+                name = self._fix_param_name_to_vllm(name, extra_prefixes=["modules_to_save.default."])
 
-
-
-            llm_model = self.llm.llm_engine.model_executor.driver_worker.model_runner.model
-            llm_model.load_weights([(name, param.data)])
+                llm_model = self.llm.llm_engine.model_executor.driver_worker.model_runner.model
+                llm_model.load_weights([(name, param.data)])
+            # Unmerge adapters while parameters are still gathered
+            model.unmerge_adapter()
+            # Parameters will automatically be repartitioned when exiting the context
+        else:
+            for name, param in model.named_parameters():
+                name = self._fix_param_name_to_vllm(name)
+                llm_model = self.llm.llm_engine.model_executor.driver_worker.model_runner.model
+                llm_model.load_weights([(name, param.data)]) 
 
         self.llm.reset_prefix_cache()
 
