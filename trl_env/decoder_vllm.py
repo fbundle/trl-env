@@ -1,11 +1,9 @@
 
 
 from .decoder import RolloutDecoder, RolloutDecoderFactory
-from transformers import PreTrainedModel, PreTrainedTokenizerBase, ProcessorMixin, Trainer
-from peft import PeftModel
+from transformers import Trainer
 
 from trl.generation.vllm_generation import VLLMGeneration
-from accelerate import Accelerator
 
 class VLLMDecoder(RolloutDecoder):
     def __init__(self,
