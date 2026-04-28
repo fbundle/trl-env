@@ -183,7 +183,7 @@ def load_env_and_data(effective_batch_size: int):
         return generate_seed(bit_size)
     
     data = LazyDataset[str](n=train_size, f=f)
-    env_factory = lambda: DiscreteLogarithmEnv()
+    env_factory = DiscreteLogarithmEnv
     return (
         env_factory,
         data,
