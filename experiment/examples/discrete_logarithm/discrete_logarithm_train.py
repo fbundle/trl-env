@@ -165,22 +165,21 @@ def load_env_and_data(effective_batch_size: int):
     #       = 8000
     # no_points_per_step = effective_batch_size / num_generations
     def f(i: int) -> str:
-        def generate_seed(bit_size: int) -> str:
+        def generate_seed(p_seed: int) -> str:
             # find a prime p
-            p: int = np.random.randint(2**(bit_size-1), 2**bit_size)
-            p: int = sympy.nextprime(p)             # type: ignore
+            p: int = sympy.nextprime(p_seed)             # type: ignore
             # sample g and x
             g = np.random.randint(2, p)
             x = np.random.randint(1, p)
             h = pow(g, x, p)
             return DiscreteLogarithmSeed(g=g, h=h, p=p).model_dump_json()
         # make problem progressively harder
-        # bit_size 6 -> 20
-        MIN, MAX = 6, 20
+        # bit_size 10 -> 30
+        MIN, MAX = 10, 30
         proportion: float = i / train_size
-        bit_size = int(MIN + (MAX - MIN) * proportion)
-
-        return generate_seed(bit_size)
+        expected_bit_size: float = MIN + (MAX - MIN) * proportion
+        p_seed: int = np.random.geometric(1 / 2 ** expected_bit_size)
+        return generate_seed(p_seed)
     
     data = LazyDataset[str](n=train_size, f=f)
     env_factory = DiscreteLogarithmEnv
