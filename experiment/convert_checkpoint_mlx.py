@@ -2,6 +2,8 @@ import json
 import os
 import sys
 
+import shutil
+
 from huggingface_hub import hf_hub_download
 import mlx_lm
 from peft import PeftModel
@@ -57,6 +59,8 @@ def main(checkpoint_path: str):
     mlx_model_path = os.path.join("mnt/output_mlx", checkpoint_path)
     if not ctx.overwrite and os.path.exists(mlx_model_path):
         return mlx_model_path
+    if os.path.exists(mlx_model_path):
+        shutil.rmtree(mlx_model_path)
     mlx_lm.convert(
         hf_path=model_path,
         mlx_path=mlx_model_path,
@@ -67,6 +71,8 @@ def main(checkpoint_path: str):
     mlx_model_path = os.path.join("mnt/output_mlx_quantize", checkpoint_path)
     if not ctx.overwrite and os.path.exists(mlx_model_path):
         return mlx_model_path
+    if os.path.exists(mlx_model_path):
+        shutil.rmtree(mlx_model_path)
     mlx_lm.convert(
         hf_path=model_path,
         mlx_path=mlx_model_path,
