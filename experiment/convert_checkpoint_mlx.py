@@ -52,16 +52,28 @@ def merge_model(checkpoint_path: str, cache_dir: str = "mnt/model_cache") -> str
 
 def main(checkpoint_path: str):
     model_path = merge_model(checkpoint_path)
+
+
     mlx_model_path = os.path.join("mnt/output_mlx", checkpoint_path)
     if not ctx.overwrite and os.path.exists(mlx_model_path):
         return mlx_model_path
-    
+    mlx_lm.convert(
+        hf_path=model_path,
+        mlx_path=mlx_model_path,
+        quantize=False,
+    )
+    print("mlx_model", mlx_model_path)
+
+    mlx_model_path = os.path.join("mnt/output_mlx_quantize", checkpoint_path)
+    if not ctx.overwrite and os.path.exists(mlx_model_path):
+        return mlx_model_path
     mlx_lm.convert(
         hf_path=model_path,
         mlx_path=mlx_model_path,
         quantize=True,
     )
-    return mlx_model_path
+    print("mlx_model_quantize", mlx_model_path)
+
     
 
 if __name__ == "__main__":
@@ -69,6 +81,5 @@ if __name__ == "__main__":
     if len(sys.argv) > 2 and sys.argv[2] == "overwrite":
         ctx.overwrite = True
     
-    mlx_model_path = main(model_path)
-    print("mlx model", mlx_model_path)
+    main(model_path)
         
