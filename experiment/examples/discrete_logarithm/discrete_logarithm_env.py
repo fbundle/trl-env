@@ -52,7 +52,43 @@ def parse_action(action: str) -> ParsedAction:
 
 EXTRA_EOS_TOKEN_LIST = []
 
-f = lambda x: 1 / (1 + x)
+import multiprocessing as mp
+
+def _eval_in_subprocess(code: str, timeout: float, max_memory: int, result_queue: mp.Queue):
+    """Runs in a child process — if it crashes, only the child dies."""
+    try:
+        from py_mini_racer import MiniRacer
+        mc = MiniRacer()
+        result = mc.eval(code=code, timeout=int(timeout * 1000), max_memory=max_memory)
+        result_queue.put(("ok", str(result)))
+    except Exception as e:
+        result_queue.put(("err", str(e)))
+
+def safe_eval_js(code: str, timeout: float = 1.0, max_memory: int = 256 * 1024 * 1024) -> tuple[bool, str]:
+    """
+    Returns (success, result_str).
+    Completely isolated — a V8 crash or OOM only kills the child process.
+    """
+    q = mp.Queue()
+    p = mp.Process(target=_eval_in_subprocess, args=(code, timeout, max_memory, q))
+    p.start()
+    p.join(timeout=timeout + 1.0)  # extra second for process overhead
+
+    if p.is_alive():
+        p.kill()
+        p.join()
+        return False, "timeout: process did not terminate"
+
+    if p.exitcode != 0:
+        return False, f"process crashed (exitcode {p.exitcode})"
+
+    if q.empty():
+        return False, "process exited without result"
+
+    status, value = q.get_nowait()
+    if status == "err":
+        return False, value
+    return True, value
 
 def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, action: str) -> tuple[float, bool, str]:
     a = parse_action(action)
@@ -86,16 +122,14 @@ def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, action: str) -
                 alive = False
                 delta = "correct answer"
     elif a.action_type == "tool_call":
-        try:
-            result = mini_racer.eval(code=a.action_value, timeout=1000, max_memory=256 * 1024 * 1024)  # 1s, 256MB
-            result_str = str(result)
-            # 0.3 point for compile ok
+        ok, result_str = safe_eval_js(code=a.action_value, timeout=1000, max_memory=256 * 1024 * 1024) # 1 second, 256MB
+        if ok:
+            # 0.3 point for code ok
             action_points = 0.3
-        except Exception as e:
+        else:
             # 0.2 point for compile error
-            result_str = str(e)
             action_points = 0.2
-        
+
         delta = result_str[:256]
         alive = True
     else:
