@@ -147,15 +147,11 @@ class DiscreteLogarithmEnv(Env):
         g, h, p = self.seed.g, self.seed.h, self.seed.p
         return self, f"""
 Find x such that {g}^x = {h} (mod {p}), this is the discrete logarithm problem
-You are allow to use javascript by ending your response by
-
-<tool_call> your javascript code here
-
-For example
+You are allow to use javascript by ending your response by using tool call. For example
 
 <tool_call> function calculate(g, h, p) {{...}}; calculate({g}, {h}, {p})
 
-I will run that code in a V8 engine with a timeout of 1 seconds and 50 MB max memory.
+I will run that code in a V8 engine with a timeout of 1 seconds and 50 MB max memory and tell you the return value.
 If you are confident with your answer, just output the answer without any explanation.
 Note that, answer should be in (mod {p}). Once the answer is given, the environment is terminated.
 """
