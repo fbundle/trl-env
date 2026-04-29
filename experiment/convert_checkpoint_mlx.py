@@ -1,6 +1,5 @@
 import json
 import os
-import shutil
 import sys
 
 from huggingface_hub import hf_hub_download
@@ -13,31 +12,6 @@ class Context(BaseModel):
     overwrite: bool = False
 
 ctx = Context()
-
-def patch_model(model_path: str):
-    """
-    update model_type in config.json to match mlx_lm config
-    """
-
-    patch_dict = {
-        "qwen3_5_text": "qwen3_5"
-    }
-    def patch(model_type: str) -> str:
-        if model_type not in patch_dict:
-            return model_type
-        return patch_dict[model_type]
-
-    config_path = os.path.join(model_path, "config.json")
-    config_backup_path = os.path.join(model_path, "config.backup.json")
-
-    if not os.path.exists(config_backup_path):
-        shutil.copyfile(src=config_path, dst=config_backup_path)
-    
-    config = json.loads(open(config_backup_path).read())
-    config["model_type"] = patch(config["model_type"])
-
-    open(config_path, "w").write(json.dumps(config))
-
 
 def get_local_path(checkpoint_path: str, name: str) -> str:
     path = os.path.join(checkpoint_path, name)
@@ -54,17 +28,25 @@ def merge_model(checkpoint_path: str, cache_dir: str = "mnt/model_cache") -> str
     if not ctx.overwrite and os.path.exists(model_path):
         return model_path
 
+    # load base model
     adapter_config_path = get_local_path(checkpoint_path, "adapter_config.json")
     adapter_config = json.loads(open(adapter_config_path).read())
     base_model_path = adapter_config["base_model_name_or_path"]
     tokenizer = AutoTokenizer.from_pretrained(base_model_path)
     base_model = AutoModelForCausalLM.from_pretrained(base_model_path)
+
+    # load adapter model
     model = PeftModel.from_pretrained(base_model, checkpoint_path)
+
+    # merge
     model = model.merge_and_unload() # type: ignore
+
+    # save
     tokenizer.save_pretrained(model_path)
     model.save_pretrained(model_path)
+
+    # overwrite config with base model config
     base_model.config.save_pretrained(model_path)
-    # patch_model(model_path)
 
     return model_path
 
