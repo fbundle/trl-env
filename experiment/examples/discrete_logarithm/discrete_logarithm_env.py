@@ -53,44 +53,41 @@ def parse_action(action: str) -> ParsedAction:
 EXTRA_EOS_TOKEN_LIST = []
 
 import multiprocessing as mp
+import queue
 
 def _mini_racer_eval(result_queue: mp.Queue, code: str, timeout_sec: float, max_memory_bytes: int):
     try:
         from py_mini_racer import MiniRacer
         mc = MiniRacer()
         result: Any = mc.eval(code=code, timeout_sec=timeout_sec, max_memory=max_memory_bytes)
-        output = str(result)
-        error = None
-    except Exception as e:
-        output = None
-        error = e
-    finally:
-        result_queue.put((output, error))
 
-def safe_eval_js(code: str, timeout_sec: float = 1.0, max_memory_bytes: int = 256 * 1024 * 1024) -> tuple[str, Any]:
+        ok, result_str = True, str(result)
+    except Exception as e:
+        ok, result_str = False, str(e)
+    finally:
+        result_queue.put((ok, result_str))
+
+def safe_eval_js(code: str, timeout_sec: float = 1.0, max_memory_bytes: int = 256 * 1024 * 1024) -> tuple[bool, str]:
     ctx = mp.get_context("spawn")
     result_queue = ctx.Queue(maxsize=1)
     proc = ctx.Process(target=_mini_racer_eval, args=(result_queue, code, timeout_sec, max_memory_bytes))
     proc.start()
-    proc.join(timeout=timeout_sec + 1)  # extra second for process overhead
+    
+    try:
+        ok, result_str = result_queue.get(block=True, timeout=timeout_sec + 1) # extra second for process communication
+    except queue.Empty:
+        ok, result_str = False, "process returned nothing"
+    except Exception as e:
+        ok, result_str = False, str(e)
 
     if proc.is_alive():
         proc.kill()
-        proc.join()
-        return "", RuntimeError("timeout: process did not terminate")
+    
+    proc.join()
 
-    if proc.exitcode != 0:
-        return "", RuntimeError(f"process crashed (exitcode {proc.exitcode})")
+    return ok, result_str
 
-    if result_queue.empty():
-        return "", RuntimeError("process exited without result")
-    try:
-        output, error = result_queue.get_nowait()
-        return output, error
-    except Exception as e:
-        return "", e
-
-def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, action: str) -> tuple[float, bool, str]:
+def process_action(g: int, h: int, p: int, action: str) -> tuple[float, bool, str]:
     a = parse_action(action)
 
     format_points = a.format_points
@@ -122,14 +119,13 @@ def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, action: str) -
                 alive = False
                 delta = "correct answer"
     elif a.action_type == "tool_call":
-        result_str, error = safe_eval_js(code=a.action_value, timeout_sec=1, max_memory_bytes=256 * 1024 * 1024) # 1 second, 256MB
-        if error is None:
+        ok, result_str = safe_eval_js(code=a.action_value, timeout_sec=1.0, max_memory_bytes=256 * 1024 * 1024) # 1 second, 256MB
+        if ok:
             # 0.3 point for code ok
             action_points = 0.3
         else:
             # 0.2 point for compile error
             action_points = 0.2
-            result_str = str(error)
 
         delta = result_str[:256]
         alive = True
@@ -199,7 +195,6 @@ Note that, answer should be in (mod {p}). Once the answer is given, the environm
             g=g,
             h=h,
             p=p,
-            mini_racer=MiniRacer(),
             action=action,
         )
 
