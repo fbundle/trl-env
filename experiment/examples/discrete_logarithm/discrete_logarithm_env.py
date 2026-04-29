@@ -1,6 +1,6 @@
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Any
 
 from pydantic import BaseModel
 from py_mini_racer import MiniRacer
@@ -54,41 +54,41 @@ EXTRA_EOS_TOKEN_LIST = []
 
 import multiprocessing as mp
 
-def _eval_in_subprocess(code: str, timeout: float, max_memory: int, result_queue: mp.Queue):
-    """Runs in a child process — if it crashes, only the child dies."""
+def _mini_racer_eval(result_queue: mp.Queue, code: str, timeout_sec: float, max_memory_bytes: int):
     try:
         from py_mini_racer import MiniRacer
         mc = MiniRacer()
-        result = mc.eval(code=code, timeout=int(timeout * 1000), max_memory=max_memory)
-        result_queue.put(("ok", str(result)))
+        result: Any = mc.eval(code=code, timeout_sec=timeout_sec, max_memory=max_memory_bytes)
+        output = str(result)
+        error = None
     except Exception as e:
-        result_queue.put(("err", str(e)))
+        output = None
+        error = e
+    finally:
+        result_queue.put((output, error))
 
-def safe_eval_js(code: str, timeout: float = 1.0, max_memory: int = 256 * 1024 * 1024) -> tuple[bool, str]:
-    """
-    Returns (success, result_str).
-    Completely isolated — a V8 crash or OOM only kills the child process.
-    """
-    q = mp.Queue(maxsize=1)
-    p = mp.Process(target=_eval_in_subprocess, args=(code, timeout, max_memory, q))
-    p.start()
-    p.join(timeout=timeout + 1.0)  # extra second for process overhead
+def safe_eval_js(code: str, timeout_sec: float = 1.0, max_memory_bytes: int = 256 * 1024 * 1024) -> tuple[str, Any]:
+    ctx = mp.get_context("spawn")
+    result_queue = ctx.Queue(maxsize=1)
+    proc = ctx.Process(target=_mini_racer_eval, args=(result_queue, code, timeout_sec, max_memory_bytes))
+    proc.start()
+    proc.join(timeout=timeout_sec + 1)  # extra second for process overhead
 
-    if p.is_alive():
-        p.kill()
-        p.join()
-        return False, "timeout: process did not terminate"
+    if proc.is_alive():
+        proc.kill()
+        proc.join()
+        return "", RuntimeError("timeout: process did not terminate")
 
-    if p.exitcode != 0:
-        return False, f"process crashed (exitcode {p.exitcode})"
+    if proc.exitcode != 0:
+        return "", RuntimeError(f"process crashed (exitcode {proc.exitcode})")
 
-    if q.empty():
-        return False, "process exited without result"
-
-    status, value = q.get_nowait()
-    if status == "err":
-        return False, value
-    return True, value
+    if result_queue.empty():
+        return "", RuntimeError("process exited without result")
+    try:
+        output, error = result_queue.get_nowait()
+        return output, error
+    except Exception as e:
+        return "", e
 
 def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, action: str) -> tuple[float, bool, str]:
     a = parse_action(action)
@@ -122,13 +122,14 @@ def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, action: str) -
                 alive = False
                 delta = "correct answer"
     elif a.action_type == "tool_call":
-        ok, result_str = safe_eval_js(code=a.action_value, timeout=1000, max_memory=256 * 1024 * 1024) # 1 second, 256MB
-        if ok:
+        result_str, error = safe_eval_js(code=a.action_value, timeout_sec=1, max_memory_bytes=256 * 1024 * 1024) # 1 second, 256MB
+        if error is None:
             # 0.3 point for code ok
             action_points = 0.3
         else:
             # 0.2 point for compile error
             action_points = 0.2
+            result_str = str(error)
 
         delta = result_str[:256]
         alive = True
