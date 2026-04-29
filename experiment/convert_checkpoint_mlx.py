@@ -63,7 +63,8 @@ def merge_model(checkpoint_path: str, cache_dir: str = "mnt/model_cache") -> str
     model = model.merge_and_unload() # type: ignore
     tokenizer.save_pretrained(model_path)
     model.save_pretrained(model_path)
-    patch_model(model_path)
+    base_model.config.save_pretrained(model_path)
+    # patch_model(model_path)
 
     return model_path
 
