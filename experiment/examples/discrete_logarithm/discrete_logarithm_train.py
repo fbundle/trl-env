@@ -168,10 +168,9 @@ def load_env_and_data(effective_batch_size: int):
         def generate_seed(bit_size: int = 10) -> str:
             # find a prime p
             p: int = np.random.randint(2**(bit_size-1), 2**bit_size)
-            p: int = sympy.nextprime(p)
-            # use g=2 as a simple generator (works for most primes)
+            p: int = sympy.nextprime(p)             # type: ignore
+            # sample g and x
             g = np.random.randint(2, p)
-            # sample x and compute h
             x = np.random.randint(1, p)
             h = pow(g, x, p)
             return DiscreteLogarithmSeed(g=g, h=h, p=p).model_dump_json()
