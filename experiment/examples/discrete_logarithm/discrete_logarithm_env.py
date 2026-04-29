@@ -96,7 +96,7 @@ def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, action: str) -
             result_str = str(e)
             action_points = 0.2
         
-        delta = f"## INPUT ##\n\n{a.action_value}\n\n## OUTPUT ##\n\n{result_str[:256]}"
+        delta = f"## INPUT ##\n{a.action_value}\n\n## OUTPUT ##\n{result_str[:256]}"
         alive = True
     else:
         # nothing detected
