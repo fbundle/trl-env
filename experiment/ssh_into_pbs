@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+# Check if Job ID is provided
+if [ -z "$1" ]; then
+    echo "Usage: $0 <job_id>"
+    exit 1
+fi
+
+JOBID=$1
+
+# Extract the hostname from qstat -f
+# 1. qstat -f gets full job details
+# 2. grep finds the exec_host line
+# 3. sed/awk cleans the string (handles 'exec_host = host/index')
+HOSTNAME=$(qstat -f "$JOBID" | grep "exec_host =" | awk -F'=' '{print $2}' | awk -F'/' '{print $1}' | tr -d '[:space:]')
+
+# Verify if hostname was found
+if [ -z "$HOSTNAME" ]; then
+    echo "Error: Could not find execution host for Job ID $JOBID."
+    echo "The job might be queued, finished, or the ID is invalid."
+    exit 1
+fi
+
+echo "Connecting to $HOSTNAME for Job $JOBID..."
+
+# Execute the SSH command with the environment variable
+PBS_JOBID="$JOBID" ssh "$HOSTNAME"
