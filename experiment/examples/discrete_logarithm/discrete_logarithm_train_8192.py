@@ -162,7 +162,7 @@ def load_env_and_data(effective_batch_size: int):
     train_size = 100 * effective_batch_size
     # train data generation
     # total_num_steps = train_size x num_generations / effective_batch_size
-    #       = 8000
+    #       = 800
     # no_points_per_step = effective_batch_size / num_generations
     def f(i: int) -> str:
         def generate_seed(p_seed: int) -> str:
