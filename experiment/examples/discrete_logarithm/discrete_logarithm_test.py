@@ -52,7 +52,8 @@ class MlxDecoder(RolloutDecoder):
 
 
 def logger(role: str, content: str):
-    print(f"{role}> {content}")
+    print(f"## {role} ##############")
+    print(content)
 
 def main(model_path: str):
     processor = qwen3_processor
