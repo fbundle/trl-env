@@ -158,8 +158,8 @@ def load_batch_information(mode: Mode):
 def load_env_and_data(effective_batch_size: int):
     from experiment.examples.discrete_logarithm.discrete_logarithm_env import DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
 
-    # train 1000 batches
-    train_size = 1000 * effective_batch_size
+    # train 100 batches
+    train_size = 100 * effective_batch_size
     # train data generation
     # total_num_steps = train_size x num_generations / effective_batch_size
     #       = 8000
