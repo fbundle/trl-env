@@ -179,12 +179,8 @@ def load_env_and_data(effective_batch_size: int):
         MIN, MAX = 6, 20
         proportion: float = i / train_size
         bit_size = int(MIN + (MAX - MIN) * proportion)
-        actual_bit_size = np.random.geometric(p=1 / bit_size)
 
-        actual_bit_size = max(MIN, actual_bit_size)
-        actual_bit_size = min(MAX, actual_bit_size)
-
-        return generate_seed(actual_bit_size)
+        return generate_seed(bit_size)
     
     data = LazyDataset[str](n=train_size, f=f)
     env_factory = DiscreteLogarithmEnv
