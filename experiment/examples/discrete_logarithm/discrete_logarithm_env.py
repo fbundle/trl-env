@@ -14,8 +14,14 @@ def extract_last_natural(s: str) -> int | None:
     matches = re.findall(r'-?\d+', s)
     if not matches:
         return None
-    last = int(matches[-1])
-    return last if last >= 0 else None
+    try:
+        last = int(matches[-1])
+        last = max(last, 0)
+    except ValueError:
+        # integer might be too big for int
+        last = None
+
+    return last
 
 @dataclass
 class ParsedAction:
@@ -164,7 +170,7 @@ Note that, answer should be in (mod {p}). Once the answer is given, the environm
     def step(self, action: Action) -> tuple[Env, Delta]:
         assert self.seed is not None
         assert self.mini_racer is not None
-        
+
         g, h, p = self.seed.g, self.seed.h, self.seed.p
 
         self.step_count += 1
