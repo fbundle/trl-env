@@ -8,7 +8,7 @@ from transformers import AutoTokenizer
 
 from trl_env.decoder import RolloutDecoder
 from trl_env.rollout import rollout
-from trl_env.processor import qwen3_processor
+from trl_env.processor import qwen3_processor, qwen3_instruct_processor
 
 from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST, DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
 from trl_env.tokenizer import TransformerTokenizer
@@ -68,7 +68,10 @@ def generate_seed(p_seed: int) -> str:
     return DiscreteLogarithmSeed(g=g, h=h, p=p).model_dump_json()
 
 def main(model_path: str, p_seed: int):
-    processor = qwen3_processor
+    if "instruct" in model_path:
+        processor = qwen3_instruct_processor
+    else:
+        processor = qwen3_processor
 
     max_turn_length = 8192
     max_conversation_length = 8192
