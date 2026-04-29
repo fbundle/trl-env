@@ -52,42 +52,16 @@ def parse_action(action: str) -> ParsedAction:
 
 EXTRA_EOS_TOKEN_LIST = []
 
-import multiprocessing as mp
-import queue
-
-def _mini_racer_eval(result_queue: mp.Queue, code: str, timeout_sec: float, max_memory_bytes: int):
+def safe_eval_js(mini_racer: MiniRacer, code: str, timeout_sec: float = 1.0, max_memory_bytes: int = 256 * 1024 * 1024) -> tuple[bool, str]:
     try:
-        from py_mini_racer import MiniRacer
-        mc = MiniRacer()
-        result: Any = mc.eval(code=code, timeout_sec=timeout_sec, max_memory=max_memory_bytes)
-
+        result: Any = mini_racer.eval(code=code, timeout_sec=timeout_sec, max_memory=max_memory_bytes)
         ok, result_str = True, str(result)
     except Exception as e:
         ok, result_str = False, str(e)
-    finally:
-        result_queue.put((ok, result_str))
-
-def safe_eval_js(code: str, timeout_sec: float = 1.0, max_memory_bytes: int = 256 * 1024 * 1024) -> tuple[bool, str]:
-    ctx = mp.get_context("spawn")
-    result_queue = ctx.Queue(maxsize=1)
-    proc = ctx.Process(target=_mini_racer_eval, args=(result_queue, code, timeout_sec, max_memory_bytes))
-    proc.start()
-    
-    try:
-        ok, result_str = result_queue.get(block=True, timeout=timeout_sec + 1) # extra second for process communication
-    except queue.Empty:
-        ok, result_str = False, "process returned nothing"
-    except Exception as e:
-        ok, result_str = False, str(e)
-
-    if proc.is_alive():
-        proc.kill()
-    
-    proc.join()
 
     return ok, result_str
 
-def process_action(g: int, h: int, p: int, action: str) -> tuple[float, bool, str]:
+def process_action(mini_racer: MiniRacer, g: int, h: int, p: int, action: str) -> tuple[float, bool, str]:
     a = parse_action(action)
 
     format_points = a.format_points
@@ -119,7 +93,7 @@ def process_action(g: int, h: int, p: int, action: str) -> tuple[float, bool, st
                 alive = False
                 delta = "correct answer"
     elif a.action_type == "tool_call":
-        ok, result_str = safe_eval_js(code=a.action_value, timeout_sec=1.0, max_memory_bytes=256 * 1024 * 1024) # 1 second, 256MB
+        ok, result_str = safe_eval_js(mini_racer=mini_racer, code=a.action_value, timeout_sec=1.0, max_memory_bytes=256 * 1024 * 1024) # 1 second, 256MB
         if ok:
             # 0.3 point for code ok
             action_points = 0.3
@@ -163,6 +137,7 @@ class DiscreteLogarithmEnv(Env):
         self.alive = False
         self.step_count = 0
 
+        self.mini_racer: MiniRacer | None = None
         self.seed: DiscreteLogarithmSeed | None = None
     
     def reset(self, seed: Seed) -> tuple[Env, Delta]:
@@ -170,6 +145,7 @@ class DiscreteLogarithmEnv(Env):
         self.alive = True
         self.step_count = 0
 
+        self.mini_racer = MiniRacer()
         self.seed = DiscreteLogarithmSeed.model_validate_json(seed)
 
         # TODO - consider input the source code of the environment into the first prompt
@@ -187,11 +163,14 @@ Note that, answer should be in (mod {p}). Once the answer is given, the environm
 """
     def step(self, action: Action) -> tuple[Env, Delta]:
         assert self.seed is not None
+        assert self.mini_racer is not None
+        
         g, h, p = self.seed.g, self.seed.h, self.seed.p
 
         self.step_count += 1
 
         points, alive, delta = process_action(
+            mini_racer=self.mini_racer,
             g=g,
             h=h,
             p=p,
