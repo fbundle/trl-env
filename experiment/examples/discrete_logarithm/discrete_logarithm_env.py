@@ -69,7 +69,7 @@ def safe_eval_js(code: str, timeout: float = 1.0, max_memory: int = 256 * 1024 *
     Returns (success, result_str).
     Completely isolated — a V8 crash or OOM only kills the child process.
     """
-    q = mp.Queue()
+    q = mp.Queue(maxsize=1)
     p = mp.Process(target=_eval_in_subprocess, args=(code, timeout, max_memory, q))
     p.start()
     p.join(timeout=timeout + 1.0)  # extra second for process overhead
