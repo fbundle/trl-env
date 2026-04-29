@@ -21,7 +21,7 @@ if [ -z "$HOSTNAME" ]; then
     exit 1
 fi
 
-echo "Connecting to $HOSTNAME for Job $JOBID..."
+echo "Connecting to $HOSTNAME for Job $JOBID ..."
 
 # Execute the SSH command with the environment variable
 PBS_JOBID="$JOBID" ssh "$HOSTNAME"
