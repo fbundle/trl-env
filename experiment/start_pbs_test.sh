@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+# Check if JOB_NAME is provided
+if [ -z "$1" ]; then
+    echo "Usage: $0 <job_name>"
+    exit 1
+fi
+
 JOB_NAME="log_$1"
 
 source .env
