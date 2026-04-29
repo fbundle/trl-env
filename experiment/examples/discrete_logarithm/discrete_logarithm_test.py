@@ -1,6 +1,8 @@
 
 import sys
 
+import numpy as np
+
 from transformers import AutoTokenizer
 
 from trl_env.decoder import RolloutDecoder
@@ -55,6 +57,16 @@ def logger(role: str, content: str):
     print(f"## {role.upper()} ##############")
     print(content)
 
+def generate_seed(bit_size: int = 6) -> str:
+    # find a prime p
+    p: int = np.random.randint(2**(bit_size-1), 2**bit_size)
+    p: int = sympy.nextprime(p)             # type: ignore
+    # sample g and x
+    g = np.random.randint(2, p)
+    x = np.random.randint(1, p)
+    h = pow(g, x, p)
+    return DiscreteLogarithmSeed(g=g, h=h, p=p).model_dump_json()
+
 def main(model_path: str):
     processor = qwen3_processor
 
@@ -81,9 +93,7 @@ def main(model_path: str):
         tokenizer=tokenizer,
         decoder=decoder,
         env=DiscreteLogarithmEnv(),
-        seed=DiscreteLogarithmSeed(
-            g=2, h=3, p=5,
-        ).model_dump_json(),
+        seed=generate_seed(),
         system_prompt=system_prompt,
         max_conversation_length=max_conversation_length,
         conversation_logger=logger,
