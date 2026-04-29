@@ -87,7 +87,7 @@ def process_action(g: int, h: int, p: int, mini_racer: MiniRacer, action: str) -
                 delta = "correct answer"
     elif a.action_type == "tool_call":
         try:
-            result = mini_racer.eval(code=a.action_value, timeout=1000, max_memory=50 * 1024 * 1024)  # 1s, 50MB
+            result = mini_racer.eval(code=a.action_value, timeout=1000, max_memory=256 * 1024 * 1024)  # 1s, 256MB
             result_str = str(result)
             # 0.3 point for compile ok
             action_points = 0.3
@@ -132,7 +132,6 @@ class DiscreteLogarithmEnv(Env):
         self.alive = False
         self.step_count = 0
 
-        self.mini_racer: MiniRacer = MiniRacer()
         self.seed: DiscreteLogarithmSeed | None = None
     
     def reset(self, seed: Seed) -> tuple[Env, Delta]:
@@ -140,7 +139,6 @@ class DiscreteLogarithmEnv(Env):
         self.alive = True
         self.step_count = 0
 
-        self.mini_racer = MiniRacer()
         self.seed = DiscreteLogarithmSeed.model_validate_json(seed)
 
         # TODO - consider input the source code of the environment into the first prompt
@@ -152,7 +150,7 @@ You are allow to use javascript by ending your response by using tool call. For 
 <tool_call> function your_function(your_params) {{ your_code }}; your_function(your_args)
 
 
-I will run that code in a V8 engine with a timeout of 1 seconds and 50 MB max memory and tell you the return value.
+I will run that code in a V8 engine with a timeout of 1 seconds and 256 MB max memory and tell you the return value.
 If you are confident with your answer, just output the answer without any explanation.
 Note that, answer should be in (mod {p}). Once the answer is given, the environment is terminated.
 """
@@ -166,7 +164,7 @@ Note that, answer should be in (mod {p}). Once the answer is given, the environm
             g=g,
             h=h,
             p=p,
-            mini_racer=self.mini_racer,
+            mini_racer=MiniRacer(),
             action=action,
         )
 
