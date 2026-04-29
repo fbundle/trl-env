@@ -165,7 +165,7 @@ def load_env_and_data(effective_batch_size: int):
     #       = 8000
     # no_points_per_step = effective_batch_size / num_generations
     def f(i: int) -> str:
-        def generate_seed(bit_size: int = 10) -> str:
+        def generate_seed(bit_size: int) -> str:
             # find a prime p
             p: int = np.random.randint(2**(bit_size-1), 2**bit_size)
             p: int = sympy.nextprime(p)             # type: ignore
