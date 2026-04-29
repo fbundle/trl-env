@@ -179,6 +179,7 @@ def load_env_and_data(effective_batch_size: int):
         proportion: float = i / train_size
         expected_bit_size: float = MIN + (MAX - MIN) * proportion
         p_seed: int = np.random.geometric(1 / 2 ** expected_bit_size)
+        p_seed = max(3, p_seed) # p >= 3
         return generate_seed(p_seed)
     
     data = LazyDataset[str](n=train_size, f=f)
