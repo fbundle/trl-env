@@ -31,6 +31,8 @@ export TORCH_DISTRIBUTED_DEBUG=DETAIL
 export NCCL_ASYNC_ERROR_HANDLING=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
+export CUDA_VISIBLE_DEVICES={cuda_devices}
+
 export UV="$HOME/uv-x86_64-unknown-linux-gnu/uv"
 $UV run accelerate launch -m {recipe_module} train {uuid} |& tee log/run_{job_name}.log
 """
@@ -59,6 +61,12 @@ def main(recipe_file: str):
     pbs_limit = must_get_env("PBS_LIMIT", "select=1:ngpus=1")
     walltime = must_get_env("PBS_WALLTIME", "23:50:00")
 
+    if not pbs_limit.startswith("select=1:ngpus="):
+        raise RuntimeError("PBS_LIMIT must start with select=1:ngpus=")
+    
+    ngpus = int(pbs_limit.removeprefix("select=1:ngpus="))
+    cuda_devices = ",".join(map(str, range(ngpus)))
+
     recipe_module = get_module_path(recipe_file)
     recipe_name = recipe_module.split(".")[-1]
     uuid = must_get_env("UUID", pbs_limit.replace("=", "").replace(":", ""))
@@ -75,6 +83,7 @@ def main(recipe_file: str):
             pbs_limit=pbs_limit,
             walltime=walltime,
             recipe_module=recipe_module,
+            cuda_devices=cuda_devices,
             uuid=uuid,
         ),
     )
