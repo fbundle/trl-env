@@ -144,15 +144,20 @@ class DiscreteLogarithmEnv(Env):
         self.seed = DiscreteLogarithmSeed.model_validate_json(seed)
 
         # TODO - consider input the source code of the environment into the first prompt
+        g, h, p = self.seed.g, self.seed.h, self.seed.p
         return self, f"""
-Find x such that {self.seed.g}^x = {self.seed.h} (mod {self.seed.p}), this is the discrete logarithm problem
+Find x such that {g}^x = {h} (mod {p}), this is the discrete logarithm problem
 You are allow to use javascript by ending your response by
 
 <tool_call> your javascript code here
 
+For example
+
+<tool_call> function calculate(g, h, p) {{...}}; calculate({g}, {h}, {p})
+
 I will run that code in a V8 engine with a timeout of 1 seconds and 50 MB max memory.
 If you are confident with your answer, just output the answer without any explanation.
-Note that, answer should be in (mod {self.seed.p}). Once the answer is given, the environment is terminated.
+Note that, answer should be in (mod {p}). Once the answer is given, the environment is terminated.
 """
     def step(self, action: Action) -> tuple[Env, Delta]:
         assert self.seed is not None
