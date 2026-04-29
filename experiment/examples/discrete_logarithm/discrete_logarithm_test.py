@@ -52,7 +52,7 @@ class MlxDecoder(RolloutDecoder):
 
 
 def logger(role: str, content: str):
-    print(f"## {role} ##############")
+    print(f"## {role.upper()} ##############")
     print(content)
 
 def main(model_path: str):
