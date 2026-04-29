@@ -182,10 +182,10 @@ Note that, answer should be in (mod {p}). Once the answer is given, the environm
             p=p,
             action=action,
         )
-
+        gamma = 0.99
         self.alive = alive
         self.best_points = max(points, self.best_points)
-        self.reward = self.best_points * 0.95**self.step_count
+        self.reward = self.best_points * gamma**self.step_count
         
         return self,  delta
 
