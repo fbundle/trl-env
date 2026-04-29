@@ -149,7 +149,7 @@ class DiscreteLogarithmEnv(Env):
 Find x such that {g}^x = {h} (mod {p}), this is the discrete logarithm problem
 You are allow to use javascript by ending your response by using tool call. For example
 
-<tool_call> function your_function(your_params) {{ your_code }}; calculate(args)
+<tool_call> function your_function(your_params) {{ your_code }}; your_function(your_args)
 
 
 I will run that code in a V8 engine with a timeout of 1 seconds and 50 MB max memory and tell you the return value.
