@@ -7,10 +7,11 @@ import shutil
 from huggingface_hub import hf_hub_download
 import mlx_lm
 from peft import PeftModel
-from pydantic import BaseModel
+from dataclasses import dataclass
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-class Context(BaseModel):
+@dataclass
+class Context:
     overwrite: bool = False
 
 ctx = Context()
@@ -25,9 +26,17 @@ def get_local_path(checkpoint_path: str, name: str) -> str:
         filename=name,
     )
 
+def to_write(path: str) -> bool:
+    if ctx.overwrite:
+        shutil.rmtree(path, ignore_errors=True)
+        return True
+    
+    return not os.path.exists(path)
+            
+
 def merge_model(checkpoint_path: str, cache_dir: str = "mnt/model_cache") -> str:
     model_path = os.path.join("mnt/model_cache", checkpoint_path)
-    if not ctx.overwrite and os.path.exists(model_path):
+    if not to_write(model_path):
         return model_path
 
     # load base model
@@ -57,28 +66,23 @@ def main(checkpoint_path: str):
 
 
     mlx_model_path = os.path.join("mnt/output_mlx", checkpoint_path)
-    if not ctx.overwrite and os.path.exists(mlx_model_path):
-        return mlx_model_path
-    if os.path.exists(mlx_model_path):
-        shutil.rmtree(mlx_model_path)
-    mlx_lm.convert(
-        hf_path=model_path,
-        mlx_path=mlx_model_path,
-        quantize=False,
-    )
-    print("mlx_model", mlx_model_path)
+
+    if to_write(mlx_model_path):
+        mlx_lm.convert(
+            hf_path=model_path,
+            mlx_path=mlx_model_path,
+            quantize=False,
+        )
+        print("mlx_model", mlx_model_path)
 
     mlx_model_path = os.path.join("mnt/output_mlx_quantize", checkpoint_path)
-    if not ctx.overwrite and os.path.exists(mlx_model_path):
-        return mlx_model_path
-    if os.path.exists(mlx_model_path):
-        shutil.rmtree(mlx_model_path)
-    mlx_lm.convert(
-        hf_path=model_path,
-        mlx_path=mlx_model_path,
-        quantize=True,
-    )
-    print("mlx_model_quantize", mlx_model_path)
+    if to_write(mlx_model_path):
+        mlx_lm.convert(
+            hf_path=model_path,
+            mlx_path=mlx_model_path,
+            quantize=True,
+        )
+        print("mlx_model_quantize", mlx_model_path)
 
     
 
