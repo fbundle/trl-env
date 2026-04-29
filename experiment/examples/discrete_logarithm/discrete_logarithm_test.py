@@ -58,17 +58,16 @@ def logger(role: str, content: str):
     print(f"## {role.upper()} ##############")
     print(content)
 
-def generate_seed(bit_size: int) -> str:
+def generate_seed(p_seed: int) -> str:
     # find a prime p
-    p: int = np.random.randint(2**(bit_size-1), 2**bit_size)
-    p: int = sympy.nextprime(p)             # type: ignore
+    p: int = sympy.nextprime(p_seed)             # type: ignore
     # sample g and x
     g = np.random.randint(2, p)
     x = np.random.randint(1, p)
     h = pow(g, x, p)
     return DiscreteLogarithmSeed(g=g, h=h, p=p).model_dump_json()
 
-def main(model_path: str, bit_size: int = 6):
+def main(model_path: str, p_seed: int):
     processor = qwen3_processor
 
     max_turn_length = 8192
@@ -94,14 +93,14 @@ def main(model_path: str, bit_size: int = 6):
         tokenizer=tokenizer,
         decoder=decoder,
         env=DiscreteLogarithmEnv(),
-        seed=generate_seed(bit_size),
+        seed=generate_seed(p_seed),
         system_prompt=system_prompt,
         max_conversation_length=max_conversation_length,
         conversation_logger=logger,
     )
 
 if __name__ == "__main__":
-    bit_size = 6
+    p_seed = 100
     if len(sys.argv) > 2:
-        bit_size = int(sys.argv[2])
-    main(sys.argv[1], bit_size)
+        p_seed = int(sys.argv[2])
+    main(sys.argv[1], p_seed)
