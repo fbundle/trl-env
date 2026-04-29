@@ -1,12 +1,11 @@
 
-from types import SimpleNamespace
+import sys
 
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoTokenizer
 
-from trl_env.decoder_transformer import TransformerDecoderFactory
+from trl_env.decoder import RolloutDecoder
 from trl_env.rollout import rollout
-from trl_env.processor import qwen3_instruct_processor
+from trl_env.processor import qwen3_processor
 
 from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST, DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
 from trl_env.tokenizer import TransformerTokenizer
@@ -33,6 +32,7 @@ class MlxDecoder(RolloutDecoder):
     def generate(self, input_ids: list[int]) -> tuple[list[int], list[float]]:
         response_generator = mlx_lm.stream_generate(
             model=self.model,
+            tokenizer=self.tokenizer,
             prompt=input_ids,
             max_tokens=self.max_completion_length,
             sampler=mlx_lm.sample_utils.make_sampler(
