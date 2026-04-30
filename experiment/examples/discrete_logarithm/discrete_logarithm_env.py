@@ -188,5 +188,23 @@ Note that, answer should be in (mod {p}). Once the answer is given, the environm
         
         return self,  delta
 
+import secrets
+import sympy
+
+def generate_seed(bit_size: int = 64) -> DiscreteLogarithmSeed:
+    # 1. Generate a random p_seed with the specific bit_size
+    # secrets.randbits is better for very large integers
+    p_seed = secrets.randbits(bit_size) | (1 << (bit_size - 1)) | 1
+
+    # 2. Find the next prime
+    p: int = sympy.nextprime(p_seed)
+
+    # 3. Sample g and x using secrets for true 64-bit range
+    g = secrets.randbelow(p - 2) + 2  # Range [2, p-1]
+    x = secrets.randbelow(p - 1) + 1  # Range [1, p-1]
+    h = pow(g, x, p)
+    
+    return DiscreteLogarithmSeed(g=g, h=h, p=p)
+
 if __name__ == "__main__":
     print(open(__file__).read())
