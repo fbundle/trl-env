@@ -154,7 +154,7 @@ def main(model_path: str, p_seed: int):
         seed=generate_seed(p_seed),
         system_prompt=system_prompt,
         max_conversation_length=max_conversation_length,
-        system_conversation_length_prompt=lambda length: f"current conversation length {length}",
+        conversation_length_timer=lambda length: f"current conversation length {length}",
         conversation_logger=logger,
     )
 

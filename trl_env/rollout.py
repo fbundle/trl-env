@@ -49,7 +49,7 @@ def rollout(
     decoder: RolloutDecoder, env: Env,
     system_prompt: str, max_conversation_length: int,
     seed: Seed, 
-    system_conversation_length_prompt: Callable[[int], str] | None = None,
+    conversation_length_timer: Callable[[int], str] | None = None,
     conversation_logger: Callable[[str, str], None] | None = None,
 ) -> RolloutState:
     def LOG(role: str, content: str):
@@ -70,15 +70,20 @@ def rollout(
     while True:
         # precheck env.alive
         if not env.alive:
+            LOG("log", "rollout terminated")
+            break
+        # terminate env if conversation is long
+        if len(state.conversation) >= max_conversation_length:
+            LOG("log", "rollout terminated due to long conversation")
             break
         # add system_conversation_length_prompt
-        if system_conversation_length_prompt is not None:
-            delta = system_conversation_length_prompt(len(state.conversation))
-            LOG("system", delta)
+        if conversation_length_timer is not None:
+            delta = conversation_length_timer(len(state.conversation))
+            LOG("user", delta)
             # append environment completion
             # assuming tokenizer is additive
             # tok(a ++ b) = tok(a) ++ tok(b)
-            delta_ids = tokenizer.encode(processor.init_system_input(delta))
+            delta_ids = tokenizer.encode(processor.append_user_input(delta))
             state = state.append_completion(
                 completion_ids=delta_ids,
                 logprobs=None,
@@ -111,11 +116,7 @@ def rollout(
             completion_ids=delta_ids,
             logprobs=None,
         )
-        # terminate env if conversation is long
-        if len(state.conversation) >= max_conversation_length:
-            env.alive = False
-            LOG("log", "env terminated due to long conversation")
-            break
+
     return state
 
 from tqdm import tqdm
