@@ -71,7 +71,7 @@ def load_model_for_training(mode: Mode, max_turn_length: int, max_conversation_l
 
 
     processor = qwen3_processor
-    model_path = "Qwen/Qwen3-4B"
+    model_path = "Qwen/Qwen3-1.7B"
     debug_model_path = "Qwen/Qwen3-0.6B"
     deepspeed = None # "conf/ds_zero2.json"
     
