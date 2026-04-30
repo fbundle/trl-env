@@ -78,7 +78,7 @@ elif sys.platform == "linux" and VLLM:
             temperature=temperature,
             eos_token_set={tokenizer.eos_token_id},
             max_completion_length=max_completion_length,
-            gpu_memory_utilization=0.9,
+            gpu_memory_utilization=0.6,
         )
 
         trainer = SimpleNamespace(

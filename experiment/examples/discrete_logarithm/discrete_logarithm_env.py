@@ -63,7 +63,7 @@ def parse_action(action: str) -> ParsedAction:
 
 def execute_code(mini_racer: MiniRacer, code: str, timeout_sec: float, max_memory_bytes: int) -> tuple[bool, str]:
     try:
-        result: Any = mini_racer.execute(code=code, timeout_sec=timeout_sec, max_memory=max_memory_bytes)
+        result: Any = mini_racer.execute(expr=code, timeout_sec=timeout_sec, max_memory=max_memory_bytes)
         ok, result_str = True, str(result)
     except Exception as e:
         ok, result_str = False, str(e)
