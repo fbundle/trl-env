@@ -172,9 +172,9 @@ def load_env_and_data(effective_batch_size: int):
         # bit_size MIN -> MAX
         MIN, MAX = 64, 128
         proportion: float = i / train_size
-        expected_bit_size: int = int(MIN + (MAX - MIN) * proportion)
+        bit_size: int = int(MIN + (MAX - MIN) * proportion)
 
-        return generate_seed(p_seed).model_dump_json()
+        return generate_seed(bit_size).model_dump_json()
     
     data = LazyDataset[str](n=train_size, f=f)
     env_factory = DiscreteLogarithmEnv
