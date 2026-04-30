@@ -11,11 +11,11 @@ from trl_env.decoder import RolloutDecoder
 from trl_env.rollout import rollout
 from trl_env.processor import qwen3_processor, qwen3_instruct_processor
 
-from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST, DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
+from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST, DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT, generate_seed
 from trl_env.tokenizer import TransformerTokenizer
 
 
-VLLM = False
+VLLM = True
 MLX = True
 
 if sys.platform == "darwin" and MLX:
@@ -78,7 +78,7 @@ elif sys.platform == "linux" and VLLM:
             temperature=temperature,
             eos_token_set={tokenizer.eos_token_id},
             max_completion_length=max_completion_length,
-            gpu_memory_utilization=0.7,
+            gpu_memory_utilization=0.9,
         )
 
         trainer = SimpleNamespace(
@@ -113,16 +113,8 @@ def logger(role: str, content: str):
     print(f"## {role.upper()} ##############")
     print(content)
 
-def generate_seed(p_seed: int) -> str:
-    # find a prime p
-    p: int = sympy.nextprime(p_seed)             # type: ignore
-    # sample g and x
-    g = np.random.randint(2, p)
-    x = np.random.randint(1, p)
-    h = pow(g, x, p)
-    return DiscreteLogarithmSeed(g=g, h=h, p=p).model_dump_json()
 
-def main(model_path: str, p_seed: int):
+def main(model_path: str, bit_size: int):
     if "instruct" in model_path:
         processor = qwen3_instruct_processor
     else:
@@ -151,7 +143,7 @@ def main(model_path: str, p_seed: int):
         tokenizer=tokenizer,
         decoder=decoder,
         env=DiscreteLogarithmEnv(),
-        seed=generate_seed(p_seed),
+        seed=generate_seed(bit_size).model_dump_json(),
         system_prompt=system_prompt,
         max_conversation_length=max_conversation_length,
         conversation_timer=lambda length: f"current conversation length {length}",
@@ -159,7 +151,7 @@ def main(model_path: str, p_seed: int):
     )
 
 if __name__ == "__main__":
-    p_seed = 100
+    bit_size = 32
     if len(sys.argv) > 2:
-        p_seed = int(sys.argv[2])
-    main(sys.argv[1], p_seed)
+        bit_size = int(sys.argv[2])
+    main(sys.argv[1], bit_size)
