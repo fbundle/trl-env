@@ -27,7 +27,7 @@ def upload(output_dir: str):
         folder_path=output_dir,
         repo_id=hf_model,
         repo_type="model",
-        ignore_patterns=["checkpoint-*"],
+        # ignore_patterns=["checkpoint-*"],
     )
 
 
