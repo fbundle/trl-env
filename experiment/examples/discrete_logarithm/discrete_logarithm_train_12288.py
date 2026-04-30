@@ -289,6 +289,7 @@ def main(mode: Mode, uuid: str):
         decoder_factory=decoder_factory,
         system_prompt=system_prompt,
         max_conversation_length=max_conversation_length,
+        conversation_timer=lambda length: f"current conversation length {length}",
     )
     reward_func = make_reward_func()
 

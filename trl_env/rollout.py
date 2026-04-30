@@ -126,6 +126,7 @@ def make_rollout_func(
     decoder_factory: RolloutDecoderFactory,
     env_factory: Callable[[], Env],    
     system_prompt: str, max_conversation_length: int,
+    conversation_timer: Callable[[int], str] | None = None,
 ) -> RolloutFunc:
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
         decoder = decoder_factory.make_decoder(trainer)
@@ -138,6 +139,7 @@ def make_rollout_func(
                 processor=processor, tokenizer=tokenizer,
                 decoder=decoder, env=env,
                 system_prompt=system_prompt, max_conversation_length=max_conversation_length,
+                conversation_timer=conversation_timer,
                 seed=prompt,
             )
             state_list.append(state)
