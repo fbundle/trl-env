@@ -10,8 +10,8 @@ from trl_env.environment import Action, Delta, Env, Seed
 
 import re
 
-SANDBOX_TIMEOUT_SEC = 30
-SANDBOX_MEMORY_GB = 16
+SANDBOX_TIMEOUT_SEC = 10
+SANDBOX_MEMORY_GB = 2
 
 EXTRA_EOS_TOKEN_LIST = []
 
