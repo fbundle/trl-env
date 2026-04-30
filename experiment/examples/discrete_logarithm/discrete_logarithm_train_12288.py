@@ -84,9 +84,11 @@ def load_model_for_training(mode: Mode, max_turn_length: int, max_conversation_l
     # prevent TRL from using apply_chat_template
     processing_class.apply_chat_template = apply_chat_template
 
+    lora_rank = 64
+    lora_alpha = 2 * lora_rank
     lora_config = LoraConfig(
-        r=8,
-        lora_alpha=16,
+        r=lora_rank,
+        lora_alpha=lora_alpha,
         target_modules=[
             "q_proj",
             "k_proj",
