@@ -170,7 +170,7 @@ def load_env_and_data(effective_batch_size: int):
     def f(i: int) -> str:
         # make problem progressively harder
         # bit_size MIN -> MAX
-        MIN, MAX = 64, 128
+        MIN, MAX = 24, 64
         proportion: float = i / train_size
         bit_size: int = int(MIN + (MAX - MIN) * proportion)
 
