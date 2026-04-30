@@ -63,7 +63,7 @@ def parse_action(action: str) -> ParsedAction:
 
 def execute_code(mini_racer: MiniRacer, code: str, timeout_sec: float, max_memory_bytes: int) -> tuple[bool, str]:
     try:
-        result: Any = mini_racer.execute(expr=code, timeout_sec=timeout_sec, max_memory=max_memory_bytes)
+        result: Any = mini_racer.eval(code=code, timeout_sec=timeout_sec, max_memory=max_memory_bytes)
         ok, result_str = True, str(result)
     except Exception as e:
         ok, result_str = False, str(e)
@@ -165,8 +165,11 @@ You are allow to use javascript by ending your response by using tool call. For 
 
 <tool_call> function your_function(your_params) {{ your_code }}; your_function(your_args)
 
-I will run that code in a V8 engine with a timeout of {SANDBOX_TIMEOUT_SEC} seconds and {SANDBOX_MEMORY_MB} MB max memory and tell you the return value (serialized into json) of the last statement.
-If you are confident with your answer, just output the answer without any explanation. Note that, answer should be in (mod {p}). Once the answer is given, the environment is terminated.
+I will run that code in a V8 engine with a timeout of {SANDBOX_TIMEOUT_SEC} seconds and {SANDBOX_MEMORY_MB} MB max memory
+and tell you the return value of the last statement.
+Note that, you should convert your value into string if the number is too big.
+If you are confident with your answer, just output the answer without any explanation, answer should be in (mod {p}).
+Once the answer is given, the environment is terminated.
 """
     def step(self, action: Action) -> tuple[Env, Delta]:
         assert self.seed is not None
