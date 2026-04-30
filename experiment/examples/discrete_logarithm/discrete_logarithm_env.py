@@ -90,9 +90,9 @@ def process_action(mini_racer: MiniRacer, g: int, h: int, p: int, action: str) -
         else:
             h_ans = pow(g, x, p)
             if h_ans != h:
-                # 0.5 point for wrong answer
+                # 0.3 point for wrong answer
                 # stop immediately
-                action_points = 0.5
+                action_points = 0.3
                 alive = False
                 delta = f"wrong answer expected {h} got {g}^{x} = {h_ans} (mod {p})"
             else:
@@ -104,8 +104,8 @@ def process_action(mini_racer: MiniRacer, g: int, h: int, p: int, action: str) -
     elif a.action_type == "tool_call":
         ok, result_str = execute_code(mini_racer=mini_racer, code=a.action_value, timeout_sec=SANDBOX_TIMEOUT_SEC, max_memory_bytes=SANDBOX_MEMORY_GB * 1024 * 1024 * 1024)
         if ok:
-            # 0.3 point for code ok
-            action_points = 0.3
+            # 0.4 point for code ok
+            action_points = 0.4
         else:
             # 0.2 point for compile error
             action_points = 0.2
