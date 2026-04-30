@@ -94,8 +94,8 @@ def main(model_path: str, p_seed: int):
     else:
         processor = qwen3_processor
 
-    max_turn_length = 8192
-    max_conversation_length = 8192
+    max_turn_length = 32768
+    max_conversation_length = 32768
 
     t = AutoTokenizer.from_pretrained(model_path)
 
