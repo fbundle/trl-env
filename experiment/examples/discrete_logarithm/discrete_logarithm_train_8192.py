@@ -122,6 +122,7 @@ def load_model_for_training(mode: Mode, max_turn_length: int, max_conversation_l
         decoder_factory,
         model,
         deepspeed,
+        lora_rank,
     )
 
 def load_batch_information(mode: Mode):
@@ -134,8 +135,8 @@ def load_batch_information(mode: Mode):
     effective_batch_size = 16
     per_device_batch_size = 1
     num_generations = 8
-    max_conversation_length = 12288
-    max_turn_length = 12288
+    max_conversation_length = 8192
+    max_turn_length = 8192
 
     if mode == ModeDebug:
         effective_batch_size = 4
@@ -224,9 +225,10 @@ def main(mode: Mode, uuid: str):
         decoder_factory,
         model,
         deepspeed,
+        lora_rank,
     ) = load_model_for_training(mode=mode, max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
 
-    output_dir = f"mnt/output/discrete-logarithm-{os.path.basename(model_path)}-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-{uuid}-lora"
+    output_dir = f"mnt/output/discrete-logarithm-{os.path.basename(model_path)}-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-lora{lora_rank}-{uuid}"
 
     (
         push_to_hub,
