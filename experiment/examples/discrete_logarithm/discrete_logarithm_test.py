@@ -4,54 +4,75 @@ import sys
 import numpy as np
 import sympy
 
-from transformers import AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from trl_env.decoder import RolloutDecoder
+from trl_env.decoder_transformer import TransformerDecoder
 from trl_env.rollout import rollout
 from trl_env.processor import qwen3_processor, qwen3_instruct_processor
 
 from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST, DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT
 from trl_env.tokenizer import TransformerTokenizer
 
-import mlx_lm
-import mlx_lm.sample_utils
+if sys.platform == "darwin":
 
-class MlxDecoder(RolloutDecoder):
-    def __init__(self,
-        model_path: str,
-        temperature: float,
-        max_completion_length: int,
-    ):
-        model, tokenizer, config = mlx_lm.load(  # type: ignore
-            path_or_hf_repo=model_path,
-            return_config=True,
-        )
-        self.model = model
-        self.tokenizer = tokenizer
+    import mlx_lm
+    import mlx_lm.sample_utils
 
-        self.temperature = temperature
-        self.max_completion_length = max_completion_length
-    
-    def generate(self, input_ids: list[int]) -> tuple[list[int], list[float]]:
-        response_generator = mlx_lm.stream_generate(
-            model=self.model,
-            tokenizer=self.tokenizer,
-            prompt=input_ids,
-            max_tokens=self.max_completion_length,
-            sampler=mlx_lm.sample_utils.make_sampler(
-                temp=self.temperature,
-            ),
-            logits_processors=mlx_lm.sample_utils.make_logits_processors(),
-        )
-        completions_ids: list[int] = []
-        logprobs: list[float] = []
-        for response in response_generator:
-            token = response.token
-            logprob = float(response.logprobs[token].item())
-            completions_ids.append(token)
-            logprobs.append(logprob)
+    class MlxDecoder(RolloutDecoder):
+        def __init__(self,
+            model_path: str,
+            temperature: float,
+            eos_token_set: set[int],
+            max_completion_length: int,
+        ):
+            model, tokenizer, config = mlx_lm.load(  # type: ignore
+                path_or_hf_repo=model_path,
+                return_config=True,
+            )
+            self.model = model
+            self.tokenizer = tokenizer
+
+            self.temperature = temperature
+            self.max_completion_length = max_completion_length
+
+            if len(eos_token_set) > 0:
+                print("WARNING: eos_token_set is not supported in mlx_lm")
         
-        return completions_ids, logprobs
+        def generate(self, input_ids: list[int]) -> tuple[list[int], list[float]]:
+            response_generator = mlx_lm.stream_generate(
+                model=self.model,
+                tokenizer=self.tokenizer,
+                prompt=input_ids,
+                max_tokens=self.max_completion_length,
+                sampler=mlx_lm.sample_utils.make_sampler(
+                    temp=self.temperature,
+                ),
+                logits_processors=mlx_lm.sample_utils.make_logits_processors(),
+            )
+            completions_ids: list[int] = []
+            logprobs: list[float] = []
+            for response in response_generator:
+                token = response.token
+                logprob = float(response.logprobs[token].item())
+                completions_ids.append(token)
+                logprobs.append(logprob)
+            
+            return completions_ids, logprobs
+    
+    decoder_class = MlxDecoder
+else:
+    def transformer_decoder(model_path: str, temperature: float, max_completion_length: int):
+        tokenizer = AutoTokenizer.from_pretrained(model_path)
+        model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto")
+
+        return TransformerDecoder(
+            model=model,
+            temperature=temperature,
+            eos_token_set={tokenizer.eos_token_id},
+            max_completion_length=max_completion_length,
+        )
+    decoder_class = transformer_decoder
 
 
 def logger(role: str, content: str):
