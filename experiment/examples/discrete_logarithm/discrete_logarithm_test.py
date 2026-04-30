@@ -101,7 +101,7 @@ def main(model_path: str, p_seed: int):
 
     tokenizer = TransformerTokenizer(t)
 
-    decoder = MlxDecoder(
+    decoder = decoder_class(
         model_path=model_path,
         temperature=0.6,
         max_completion_length=max_turn_length,
