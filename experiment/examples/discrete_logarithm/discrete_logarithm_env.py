@@ -139,9 +139,7 @@ class DiscreteLogarithmSeed(BaseModel):
 class DiscreteLogarithmEnv(Env):
     def __init__(self) -> None:
         super().__init__()
-        self.source = open(__file__).read()
         self.reward = 0
-
         self.best_points = 0
         self.alive = False
         self.step_count = 0
@@ -151,7 +149,8 @@ class DiscreteLogarithmEnv(Env):
     
     def reset(self, seed: Seed) -> tuple[Env, Delta]:
         self.reward = 0
-        self.alive = True
+        self.best_points = 0
+        self.alive = False
         self.step_count = 0
 
         self.mini_racer = MiniRacer()
