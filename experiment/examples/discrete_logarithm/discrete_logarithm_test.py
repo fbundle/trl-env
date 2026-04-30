@@ -15,7 +15,7 @@ from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_
 from trl_env.tokenizer import TransformerTokenizer
 
 
-VLLM = True
+VLLM = False
 MLX = True
 
 if sys.platform == "darwin" and MLX:
