@@ -10,6 +10,11 @@ from trl_env.environment import Action, Delta, Env, Seed
 
 import re
 
+JS_TIMEOUT_SEC = 5
+JS_MEMORY_MB = 512
+
+EXTRA_EOS_TOKEN_LIST = []
+
 def extract_last_natural(s: str) -> int | None:
     matches = re.findall(r'-?\d+', s)
     if not matches:
@@ -55,9 +60,6 @@ def parse_action(action: str) -> ParsedAction:
         action_type=None,
         format_points=0.0,
     )
-
-JS_TIMEOUT_SEC = 5
-JS_MEMORY_MB = 512
 
 def safe_eval_js(mini_racer: MiniRacer, code: str, timeout_sec: float, max_memory_bytes: int) -> tuple[bool, str]:
     try:
