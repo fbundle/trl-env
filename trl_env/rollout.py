@@ -49,7 +49,7 @@ def rollout(
     decoder: RolloutDecoder, env: Env,
     system_prompt: str, max_conversation_length: int,
     seed: Seed, 
-    conversation_length_timer: Callable[[int], str] | None = None,
+    conversation_timer: Callable[[int], str] | None = None,
     conversation_logger: Callable[[str, str], None] | None = None,
 ) -> RolloutState:
     def LOG(role: str, content: str):
@@ -77,8 +77,8 @@ def rollout(
             LOG("log", "rollout terminated due to long conversation")
             break
         # add system_conversation_length_prompt
-        if conversation_length_timer is not None:
-            delta = conversation_length_timer(len(state.conversation))
+        if conversation_timer is not None:
+            delta = conversation_timer(len(state.conversation))
             LOG("user", delta)
             # append environment completion
             # assuming tokenizer is additive
