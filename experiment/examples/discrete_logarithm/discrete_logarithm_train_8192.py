@@ -169,8 +169,8 @@ def load_env_and_data(effective_batch_size: int):
     # no_points_per_step = effective_batch_size / num_generations
     def f(i: int) -> str:
         # make problem progressively harder
-        # bit_size 10 -> 30
-        MIN, MAX = 10, 30
+        # bit_size MIN -> MAX
+        MIN, MAX = 64, 128
         proportion: float = i / train_size
         expected_bit_size: int = int(MIN + (MAX - MIN) * proportion)
 
