@@ -10,8 +10,8 @@ from trl_env.environment import Action, Delta, Env, Seed
 
 import re
 
-SANDBOX_TIMEOUT_SEC = 5
-SANDBOX_MEMORY_MB = 512
+SANDBOX_TIMEOUT_SEC = 30
+SANDBOX_MEMORY_GB = 16
 
 EXTRA_EOS_TOKEN_LIST = []
 
@@ -102,7 +102,7 @@ def process_action(mini_racer: MiniRacer, g: int, h: int, p: int, action: str) -
                 alive = False
                 delta = "correct answer"
     elif a.action_type == "tool_call":
-        ok, result_str = execute_code(mini_racer=mini_racer, code=a.action_value, timeout_sec=SANDBOX_TIMEOUT_SEC, max_memory_bytes=SANDBOX_MEMORY_MB * 1024 * 1024)
+        ok, result_str = execute_code(mini_racer=mini_racer, code=a.action_value, timeout_sec=SANDBOX_TIMEOUT_SEC, max_memory_bytes=SANDBOX_MEMORY_GB * 1024 * 1024 * 1024)
         if ok:
             # 0.3 point for code ok
             action_points = 0.3
@@ -165,7 +165,7 @@ You are allow to use javascript by ending your response by using tool call. For 
 
 <tool_call> function your_function(your_params) {{ your_code }}; your_function(your_args)
 
-I will run that code in a V8 engine with a timeout of {SANDBOX_TIMEOUT_SEC} seconds and {SANDBOX_MEMORY_MB} MB max memory
+I will run that code in a V8 engine with a timeout of {SANDBOX_TIMEOUT_SEC} seconds and {SANDBOX_MEMORY_GB} GB max memory
 and tell you the return value of the last statement.
 Note that, you should convert your value into string if the number is too big.
 If you are confident with your answer, just output the answer without any explanation, answer should be in (mod {p}).
@@ -212,4 +212,5 @@ def generate_seed(bit_size: int = 64) -> DiscreteLogarithmSeed:
     return DiscreteLogarithmSeed(g=g, h=h, p=p)
 
 if __name__ == "__main__":
-    print(open(__file__).read())
+    source = open(__file__).read()
+    print(source)
