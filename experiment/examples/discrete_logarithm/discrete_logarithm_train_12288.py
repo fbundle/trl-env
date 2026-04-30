@@ -110,7 +110,7 @@ def load_model_for_training(mode: Mode, max_turn_length: int, max_conversation_l
         temperature=1.0,
         eos_token_set=eos_token_set,
         max_completion_length=max_turn_length,
-        gpu_memory_utilization=0.3,
+        gpu_memory_utilization=0.4,
     )
 
     return (

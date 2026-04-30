@@ -162,8 +162,7 @@ You are allow to use javascript by ending your response by using tool call. For 
 
 <tool_call> function your_function(your_params) {{ your_code }}; your_function(your_args)
 
-
-I will run that code in a V8 engine with a timeout of 1 seconds and 256 MB max memory and tell you the return value.
+I will run that code in a V8 engine with a timeout of 1 seconds and 256 MB max memory and tell you the return value of the last statement.
 If you are confident with your answer, just output the answer without any explanation.
 Note that, answer should be in (mod {p}). Once the answer is given, the environment is terminated.
 """
