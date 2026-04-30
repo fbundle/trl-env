@@ -129,11 +129,10 @@ def make_rollout_func(
     conversation_timer: Callable[[int], str] | None = None,
 ) -> RolloutFunc:
     def rollout_func(prompts: list[str], trainer: GRPOTrainer) -> dict[str, Any]:
-        decoder = decoder_factory.make_decoder(trainer)
-        env = env_factory()
-
         state_list = []
         for prompt in tqdm(prompts, desc="rolling_out ..."):
+            decoder = decoder_factory.make_decoder(trainer)
+            env = env_factory()
             # TODO batch this - need to make decoder in batch as well
             state = rollout(
                 processor=processor, tokenizer=tokenizer,
