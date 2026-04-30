@@ -167,7 +167,7 @@ You are allow to use javascript by ending your response by using tool call. For 
 
 I will run that code in a V8 engine with a timeout of {SANDBOX_TIMEOUT_SEC} seconds and {SANDBOX_MEMORY_GB} GB max memory
 and tell you the return value of the last statement.
-Note that, you should convert your value into string if the number is too big.
+Note that, you should convert your output value into string if the number is too big.
 If you are confident with your answer, just output the answer without any explanation, answer should be in (mod {p}).
 Once the answer is given, the environment is terminated.
 """
