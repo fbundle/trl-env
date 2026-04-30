@@ -141,7 +141,7 @@ class DiscreteLogarithmEnv(Env):
         super().__init__()
         self.reward = 0
         self.best_points = 0
-        self.alive = False
+        self.alive = True
         self.step_count = 0
 
         self.mini_racer: MiniRacer | None = None
@@ -150,7 +150,7 @@ class DiscreteLogarithmEnv(Env):
     def reset(self, seed: Seed) -> tuple[Env, Delta]:
         self.reward = 0
         self.best_points = 0
-        self.alive = False
+        self.alive = True
         self.step_count = 0
 
         self.mini_racer = MiniRacer()
