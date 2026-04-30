@@ -104,10 +104,10 @@ def process_action(mini_racer: MiniRacer, g: int, h: int, p: int, action: str) -
     elif a.action_type == "tool_call":
         ok, result_str = execute_code(mini_racer=mini_racer, code=a.action_value, timeout_sec=SANDBOX_TIMEOUT_SEC, max_memory_bytes=SANDBOX_MEMORY_GB * 1024 * 1024 * 1024)
         if ok:
-            # 0.6 point for code ok
+            # 0.5 point for code ok
             action_points = 0.5
         else:
-            # 0.4 point for compile error
+            # 0.3 point for compile error
             action_points = 0.3
 
         delta = result_str[:256]
