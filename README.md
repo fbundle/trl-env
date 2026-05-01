@@ -20,7 +20,7 @@ class Env(Protocol):
 
 It is similar to tool call if not the same. Note that, `rollout_func` is an experimental feature of [TRL](https://github.com/huggingface/trl), this library is subject to break at anytime
 
-It is important to note that, `batch_rollout` assumes the additivity of tokenizer, that is 
+It is important to note that, tokenizer is additive if each chunk starts and ends with special tokens, in the case of `qwen3` each chunk starts with `<|im_start|>` and `<|im_end|>`
 
 ```
 tok(a ++ b) = tok(a) ++ tok(b)
