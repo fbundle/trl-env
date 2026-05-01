@@ -243,7 +243,7 @@ def main(mode: Mode, uuid: str):
     has_mps = torch.backends.mps.is_available()
 
     if mode == ModeDebug:
-        optim = "adamw"
+        optim = "adamw_torch"
     else:
         optim = "adamw_bnb_8bit"
 
