@@ -60,7 +60,8 @@ def rollout(
 
     LOG("system", system_prompt)
     LOG("user", initial_delta)
-    # assuming tokenizer is additive
+    # append environment completion
+    # this is additive since each chunk starts and ends with special tokens <|im_start|> <|im_end|>
     # tok(a ++ b) = tok(a) ++ tok(b)
     system_prompt_ids = tokenizer.encode(processor.init_system_input(system_prompt))
     initial_prompt_ids = system_prompt_ids + tokenizer.encode(processor.append_user_input(initial_delta))
@@ -81,7 +82,7 @@ def rollout(
             delta = conversation_timer(len(state.conversation))
             LOG("user", delta)
             # append environment completion
-            # assuming tokenizer is additive
+            # this is additive since each chunk starts and ends with special tokens <|im_start|> <|im_end|>
             # tok(a ++ b) = tok(a) ++ tok(b)
             delta_ids = tokenizer.encode(processor.append_user_input(delta))
             state = state.append_completion(
@@ -109,7 +110,7 @@ def rollout(
             LOG("log", "env terminated")
             break
         # append environment completion
-        # assuming tokenizer is additive
+        # this is additive since each chunk starts and ends with special tokens <|im_start|> <|im_end|>
         # tok(a ++ b) = tok(a) ++ tok(b)
         delta_ids = tokenizer.encode(processor.append_user_input(delta))
         state = state.append_completion(
