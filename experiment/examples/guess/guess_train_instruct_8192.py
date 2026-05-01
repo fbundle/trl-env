@@ -70,7 +70,7 @@ def load_model_for_training(mode: Mode, max_turn_length: int, max_conversation_l
     from experiment.examples.guess.guess_env import EXTRA_EOS_TOKEN_LIST
 
 
-    processor = qwen3_processor
+    processor = qwen3_instruct_processor
     model_path = "Qwen/Qwen3-4B"
     debug_model_path = "Qwen/Qwen3-0.6B"
     deepspeed = None # "conf/ds_zero2.json"
@@ -225,7 +225,7 @@ def main(mode: Mode, uuid: str):
         lora_rank,
     ) = load_model_for_training(mode=mode, max_turn_length=max_turn_length, max_conversation_length=max_conversation_length)
 
-    output_dir = f"mnt/output/guess-{os.path.basename(model_path)}-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-lora{lora_rank}-{uuid}"
+    output_dir = f"mnt/output/guess-instruct-{os.path.basename(model_path)}-tl{max_turn_length}-cl{max_conversation_length}-b{effective_batch_size}-lora{lora_rank}-{uuid}"
 
     (
         push_to_hub,
