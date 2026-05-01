@@ -65,7 +65,7 @@ def apply_chat_template(*args, **kwargs):
     raise RuntimeError("GRPO must not use apply_chat_template")
 
 def load_model_for_training(mode: Mode, max_turn_length: int, max_conversation_length: int):
-    from trl_env.decoder_vllm import VLLMDecoderFactory
+    
     from trl_env.processor import qwen3_instruct_processor, qwen3_processor
     from experiment.examples.guess.guess_env import EXTRA_EOS_TOKEN_LIST
 
@@ -108,13 +108,22 @@ def load_model_for_training(mode: Mode, max_turn_length: int, max_conversation_l
     eos_token_set = {processing_class.eos_token_id}
     eos_token_set.update([tokenizer.encode(eos_token)[0] for eos_token in EXTRA_EOS_TOKEN_LIST])
 
-    decoder_factory = VLLMDecoderFactory(
-        temperature=1.0,
-        eos_token_set=eos_token_set,
-        max_completion_length=max_turn_length,
-        gpu_memory_utilization=0.6,
-        enable_sleep_mode=True,
-    )
+    if mode == "debug":
+        from trl_env.decoder_transformer import TransformerDecoderFactory
+        decoder_factory = TransformerDecoderFactory(
+            temperature=1.0,
+            eos_token_set=eos_token_set,
+            max_completion_length=max_turn_length,
+        )
+    else:
+        from trl_env.decoder_vllm import VLLMDecoderFactory
+        decoder_factory = VLLMDecoderFactory(
+            temperature=1.0,
+            eos_token_set=eos_token_set,
+            max_completion_length=max_turn_length,
+            gpu_memory_utilization=0.6,
+            enable_sleep_mode=True,
+        )
 
     return (
         model_path,
