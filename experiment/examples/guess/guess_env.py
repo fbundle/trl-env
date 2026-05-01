@@ -41,6 +41,8 @@ every turn, you can output a maximum number of {max_turn_length} tokens
 the whole conversation should not last longer than {max_conversation_length} tokens
 """
 
+EXTRA_EOS_TOKEN_LIST = []
+
 class GuessEnv(Env):
     def reset(self, seed: str) -> tuple[Env, Delta]:
         self.reward = 0
