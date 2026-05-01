@@ -137,12 +137,22 @@ class DiscreteLogarithmSeed(BaseModel):
     p: int
 
 class DiscreteLogarithmEnv(Env):
+    def __del__(self):
+        if hasattr(self, "mini_racer"):
+            mini_racer = getattr(self, "mini_racer")
+            if mini_racer is not None:
+                mini_racer.close()
+
     def reset(self, seed: Seed) -> tuple[Env, Delta]:
         self.reward = 0
         self.best_points = 0
         self.alive = True
         self.step_count = 0
-
+        
+        if hasattr(self, "mini_racer"):
+            mini_racer = getattr(self, "mini_racer")
+            if mini_racer is not None:
+                mini_racer.close()
         self.mini_racer = MiniRacer()
         self.seed = DiscreteLogarithmSeed.model_validate_json(seed)
 
