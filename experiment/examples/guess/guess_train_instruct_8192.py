@@ -242,6 +242,11 @@ def main(mode: Mode, uuid: str):
     has_cuda = torch.cuda.is_available()
     has_mps = torch.backends.mps.is_available()
 
+    if mode == ModeDebug:
+        optim = "adamw"
+    else:
+        optim = "adamw_bnb_8bit"
+
     training_args = GRPOConfig(
         output_dir=output_dir,
         num_train_epochs=1,
@@ -276,7 +281,7 @@ def main(mode: Mode, uuid: str):
         # floating point precision
         bf16=has_cuda or has_mps,
         tf32=has_cuda,
-        optim="adamw_bnb_8bit",
+        optim=optim,
 
     )
 
