@@ -36,6 +36,11 @@ def process_action(seed: int, action: Action) -> tuple[float, bool, str]:
     points = 0.3 * format_points + 0.7 * action_points
     return points, alive, delta
 
+SYSTEM_PROMPT = """
+every turn, you can output a maximum number of {max_turn_length} tokens
+the whole conversation should not last longer than {max_conversation_length} tokens
+"""
+
 class GuessEnv(Env):
     def reset(self, seed: str) -> tuple[Env, Delta]:
         self.reward = 0
