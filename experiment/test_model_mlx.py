@@ -2,8 +2,8 @@ import os
 import sys
 from typing import Iterator
 
-from experiment.examples.llm_engine.engine import MlxEngine, TransformerEngine
-from experiment.examples.llm_engine.api import ChatCompletionGenerateConfig, Message
+from experiment.llm_engine.engine import MlxEngine, TransformerEngine
+from experiment.llm_engine.api import ChatCompletionGenerateConfig, Message
 
 def is_mlx_checkpoint(path: str) -> bool: # type: ignore
     if os.path.exists(os.path.join(path, "README.md")):
