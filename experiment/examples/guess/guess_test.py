@@ -82,7 +82,11 @@ def logger(role: str, content: str):
     print(content)
 
 
-def main(model_path: str):
+def main(model_path: str, seed: str):
+    assert 1 <= int(seed) and int(seed) <= 1000
+    
+
+
     if "instruct" in model_path:
         processor = qwen3_instruct_processor
     else:
@@ -109,8 +113,6 @@ def main(model_path: str):
         max_conversation_length=max_conversation_length,
     )
 
-    seed = str(generate_seed())
-
     logger("SEED", seed)
 
     rollout(
@@ -126,4 +128,5 @@ def main(model_path: str):
     )
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+
+    main(sys.argv[1], sys.argv[2])
