@@ -15,11 +15,7 @@ from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_
 from trl_env.tokenizer import TransformerTokenizer
 
 
-VLLM = False
-MLX = True
-
-if sys.platform == "darwin" and MLX:
-
+if sys.platform == "darwin":
     import mlx_lm
     import mlx_lm.sample_utils
 
@@ -66,34 +62,6 @@ if sys.platform == "darwin" and MLX:
     
     decoder_class = MlxDecoder
 
-elif sys.platform == "linux" and VLLM:
-    from types import SimpleNamespace
-    from trl_env.decoder_vllm import VLLMDecoderFactory
-    import accelerate
-    def vllm_decoder(model_path: str, temperature: float, max_completion_length: int):
-        tokenizer = AutoTokenizer.from_pretrained(model_path)
-        model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto")
-
-        decoder_factory = VLLMDecoderFactory(
-            temperature=temperature,
-            eos_token_set={tokenizer.eos_token_id},
-            max_completion_length=max_completion_length,
-            gpu_memory_utilization=0.6,
-        )
-
-        trainer = SimpleNamespace(
-            model=model,
-            processing_class=tokenizer,
-            is_fsdp_enabled=False,
-            accelerator=accelerate.Accelerator(),
-            state=SimpleNamespace(
-                global_step=1,
-            ),
-        )
-
-        return decoder_factory.make_decoder(trainer)
-
-    decoder_class = vllm_decoder
 else:
     from trl_env.decoder_transformer import TransformerDecoder
     def transformer_decoder(model_path: str, temperature: float, max_completion_length: int):
