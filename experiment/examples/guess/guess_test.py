@@ -11,7 +11,7 @@ from trl_env.decoder import RolloutDecoder
 from trl_env.rollout import rollout
 from trl_env.processor import qwen3_processor, qwen3_instruct_processor
 
-from experiment.examples.discrete_logarithm.discrete_logarithm_env import EXTRA_EOS_TOKEN_LIST, DiscreteLogarithmEnv, DiscreteLogarithmSeed, SYSTEM_PROMPT, generate_seed
+from experiment.examples.guess.guess_env import EXTRA_EOS_TOKEN_LIST, GuessEnv, SYSTEM_PROMPT, generate_seed
 from trl_env.tokenizer import TransformerTokenizer
 
 
@@ -82,7 +82,7 @@ def logger(role: str, content: str):
     print(content)
 
 
-def main(model_path: str, bit_size: int):
+def main(model_path: str):
     if "instruct" in model_path:
         processor = qwen3_instruct_processor
     else:
@@ -109,12 +109,16 @@ def main(model_path: str, bit_size: int):
         max_conversation_length=max_conversation_length,
     )
 
+    seed = str(generate_seed())
+
+    logger("SEED", seed)
+
     rollout(
         processor=processor,
         tokenizer=tokenizer,
         decoder=decoder,
-        env=DiscreteLogarithmEnv(),
-        seed=generate_seed(bit_size).model_dump_json(),
+        env=GuessEnv(),
+        seed=seed,
         system_prompt=system_prompt,
         max_conversation_length=max_conversation_length,
         conversation_timer=lambda length: f"current conversation length {length}",
@@ -122,7 +126,4 @@ def main(model_path: str, bit_size: int):
     )
 
 if __name__ == "__main__":
-    bit_size = 32
-    if len(sys.argv) > 2:
-        bit_size = int(sys.argv[2])
-    main(sys.argv[1], bit_size)
+    main(sys.argv[1])
