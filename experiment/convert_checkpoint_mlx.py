@@ -81,6 +81,8 @@ def main(checkpoint_path: str):
             hf_path=model_path,
             mlx_path=mlx_model_path,
             quantize=True,
+            q_group_size=64,
+            quant_predicate="mixed_4_6",
         )
         print("mlx_model_quantize", mlx_model_path)
 
