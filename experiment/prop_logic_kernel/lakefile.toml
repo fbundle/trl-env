@@ -1,0 +1,13 @@
+name = "prop-logic-kernel"
+version = "0.1.0"
+defaultTargets = ["Main.lean"]
+
+[[lean_lib]]
+name = "REPL"
+
+[[lean_lib]]
+name = "PropLogicKernel"
+
+[[lean_exe]]
+name = "Main.lean"
+root = "Main"

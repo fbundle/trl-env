@@ -1,0 +1,22 @@
+{
+  "name": "ts-prop-logic-kernel",
+  "version": "0.1.0",
+  "description": "TypeScript port of PropLogicKernel",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "logic",
+    "propositional",
+    "formal-verification",
+    "lean4"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

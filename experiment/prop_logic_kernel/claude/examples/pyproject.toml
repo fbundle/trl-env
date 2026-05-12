@@ -1,0 +1,11 @@
+[project]
+name = "examples"
+version = "0.0.1"
+requires-python = ">=3.10"
+dependencies = [
+    "py-prop-logic-kernel",
+    "tqdm",
+]
+
+[tool.uv.sources]
+py-prop-logic-kernel = { workspace = true }

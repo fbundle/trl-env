@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PropLogicKernel REPL</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>PropLogicKernel REPL</h1>
+        <div class="new-proof">
+          <div class="input-group">
+            <input type="text" id="new-prop-input" placeholder="Enter proposition (e.g., A ∧ B → B ∧ A)" />
+            <div class="symbol-toolbar" data-target="new-prop-input">
+              <button class="sym-btn" title="And">∧</button>
+              <button class="sym-btn" title="Or">∨</button>
+              <button class="sym-btn" title="Implication">→</button>
+              <button class="sym-btn" title="Falsum">⊥</button>
+            </div>
+          </div>
+          <button id="start-btn">Start Proof</button>
+        </div>
+      </header>
+
+      <main>
+        <section id="proof-container" class="hidden">
+          <div class="workspace">
+            <div class="state-panel">
+              <h3>Current Goal</h3>
+              <div id="goal-display" class="card"></div>
+              
+              <h3>Hypotheses</h3>
+              <div id="hyp-list" class="card-list"></div>
+
+              <div id="stack-info"></div>
+            </div>
+
+            <div class="repl-panel">
+              <div id="history" class="history-log"></div>
+              <div class="input-area">
+                <div class="input-group">
+                  <input type="text" id="tactic-input" placeholder="Enter tactic (e.g., intro, exact 0)" />
+                  <div class="symbol-toolbar" data-target="tactic-input">
+                    <button class="sym-btn" title="And">∧</button>
+                    <button class="sym-btn" title="Or">∨</button>
+                    <button class="sym-btn" title="Implication">→</button>
+                    <button class="sym-btn" title="Falsum">⊥</button>
+                  </div>
+                </div>
+                <div class="controls">
+                  <button id="apply-btn">Apply</button>
+                  <button id="auto-btn" class="secondary">Auto Solve</button>
+                  <button id="undo-btn" class="secondary">Undo</button>
+                  <button id="reset-btn" class="danger">Reset</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div id="success-msg" class="hidden">
+            <h2>Q.E.D. Proof Complete!</h2>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

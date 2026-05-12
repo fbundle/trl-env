@@ -1,0 +1,35 @@
+new A ∧ B → B ∧ A
+intro
+constructor
+cases 0
+exact 2
+cases 0
+exact 3
+
+new (A → B) ∧ (B → ⊥) → A → ⊥
+intro
+intro
+cases 5
+apply 8
+apply 7
+exact 6
+
+new A → (A → B) → (A → C) → (B ∨ C → D) → D
+intro
+intro
+intro
+intro
+apply 12
+left
+apply 10
+exact 9
+
+new ((P → ⊥) → ⊥) → P
+intro
+lem P
+cases 14
+refine 13
+intro
+cases 17
+exact 15
+exact 16
