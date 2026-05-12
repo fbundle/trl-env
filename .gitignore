@@ -222,3 +222,4 @@ mnt
 log
 log_*
 *.log
+run_claude
