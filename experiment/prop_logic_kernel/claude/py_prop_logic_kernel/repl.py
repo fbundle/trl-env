@@ -46,6 +46,9 @@ class Repl:
         self._last: ReplStep | None = None
         self._graceful_exit_code: int | None = None
 
+    def last(self) -> ReplStep | None:
+        return self._last
+
     def graceful_exit_code(self) -> int | None:
         return self._graceful_exit_code
 
