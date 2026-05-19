@@ -26,7 +26,7 @@ It is important to note that, tokenizer is additive if each chunk starts and end
 tok(a ++ b) = tok(a) ++ tok(b)
 ```
 
-where `a` and `b` are texts and `++` is concatenation.
+where `a` and `b` are texts and `++` is concatenation. We call it essentially additive (not actually additive)
 
 # PROCESSOR
 
